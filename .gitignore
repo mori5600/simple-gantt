@@ -23,8 +23,8 @@ Thumbs.db
 !.env.test
 
 # Prisma SQLite
-prisma/dev.db
-prisma/dev.db-journal
+prisma/*.db
+prisma/*.db-journal
 
 # Backend logs
 backend/logs/*.log

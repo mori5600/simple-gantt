@@ -103,7 +103,7 @@ pnpm format
 1. `backend/.env` を設定する
 
 ```env
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="file:./simple-gantt.db"
 API_PORT=8787
 CORS_ORIGIN="http://localhost:5173,http://localhost:<FRONTEND_PORT>,http://<SERVER_IP>:<FRONTEND_PORT>"
 LOG_LEVEL=info
