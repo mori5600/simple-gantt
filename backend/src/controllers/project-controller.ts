@@ -16,7 +16,7 @@ import {
 	reorderProjectsSchema,
 	updateProjectSchema
 } from '../schemas/project-schemas';
-import { toApiProject, toApiProjectSummary } from '../views/serializers';
+import { toApiProject, toApiProjectSummary } from '../serializers/serializers';
 
 function handleProjectValidationError(error: unknown): never {
 	if (error instanceof ProjectModelValidationError) {

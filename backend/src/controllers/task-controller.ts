@@ -12,7 +12,7 @@ import {
 	updateTaskUseCase
 } from '../usecases/task-usecases';
 import { createTaskSchema, reorderTasksSchema, updateTaskSchema } from '../schemas/task-schemas';
-import { toApiTask } from '../views/serializers';
+import { toApiTask } from '../serializers/serializers';
 
 function handleTaskValidationError(error: unknown): never {
 	if (error instanceof ProjectNotFoundError) {

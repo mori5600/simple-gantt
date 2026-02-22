@@ -11,7 +11,7 @@ import {
 	UserOptimisticLockError
 } from '../usecases/user-usecases';
 import { createUserSchema, updateUserSchema } from '../schemas/user-schemas';
-import { toApiUser, toApiUserSummary } from '../views/serializers';
+import { toApiUser, toApiUserSummary } from '../serializers/serializers';
 
 function handleUserValidationError(error: unknown): never {
 	if (error instanceof UserModelValidationError) {
