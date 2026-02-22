@@ -1,9 +1,9 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import GanttTimelinePane from '$lib/components/gantt/GanttTimelinePane.svelte';
 	import GanttToolbar from '$lib/components/gantt/GanttToolbar.svelte';
 	import TaskFiltersBar from '$lib/components/gantt/TaskFiltersBar.svelte';
-	import TaskHistoryModal from '$lib/components/gantt/TaskHistoryModal.svelte';
 	import TaskListPane from '$lib/components/gantt/TaskListPane.svelte';
 	import TaskModal from '$lib/components/gantt/TaskModal.svelte';
 	import { addDays, toIsoDate } from '$lib/features/gantt/date';
@@ -48,13 +48,7 @@
 	import { resolvePollIntervalMs, startVisibilityPolling } from '$lib/polling';
 	import type { ListColumnWidths, TaskDateRange, ZoomLevel } from '$lib/features/gantt/types';
 	import { tasksStore } from '$lib/tasksStore';
-	import {
-		tasksRepo,
-		type Project,
-		type Task,
-		type TaskHistoryEntry,
-		type User
-	} from '$lib/tasksRepo';
+	import type { Project, Task, User } from '$lib/tasksRepo';
 
 	const FILTERS_STORAGE_KEY = 'simple-gantt:task-filters:v1';
 	const PROJECT_STORAGE_KEY = 'simple-gantt:selected-project:v1';
@@ -96,11 +90,6 @@
 	let editingTaskId = $state<string | null>(null);
 	let formError = $state('');
 	let isSubmitting = $state(false);
-	let isHistoryModalOpen = $state(false);
-	let isHistoryModalLoading = $state(false);
-	let historyModalTaskTitle = $state('');
-	let historyModalError = $state('');
-	let taskHistoryEntries = $state<TaskHistoryEntry[]>([]);
 	let isExporting = $state(false);
 	let listColumnWidths = $state<ListColumnWidths>([...LIST_COLUMN_DEFAULT_WIDTHS]);
 	let isListColumnAuto = $state(true);
@@ -385,24 +374,17 @@
 		isModalOpen = true;
 	}
 
-	function openEditModal(task?: Task): void {
+	function toTaskEditHref(task: Task): string {
+		const path = resolve(`/tasks/${encodeURIComponent(task.id)}`);
+		return `${path}?projectId=${encodeURIComponent(task.projectId)}`;
+	}
+
+	function openTaskEditPage(task?: Task): void {
 		const target = task ?? selectedTask;
-		if (!target) {
+		if (!target || typeof window === 'undefined') {
 			return;
 		}
-		modalMode = 'edit';
-		taskForm = {
-			title: target.title,
-			note: target.note,
-			startDate: target.startDate,
-			endDate: target.endDate,
-			progress: target.progress,
-			assigneeIds: [...target.assigneeIds],
-			predecessorTaskId: target.predecessorTaskId ?? ''
-		};
-		editingTaskId = target.id;
-		formError = '';
-		isModalOpen = true;
+		window.location.href = toTaskEditHref(target);
 	}
 
 	function closeModal(): void {
@@ -410,36 +392,6 @@
 		formError = '';
 		isSubmitting = false;
 		editingTaskId = null;
-	}
-
-	async function openHistoryModal(): Promise<void> {
-		const projectId = selectedProjectId;
-		const task = selectedTask;
-		if (!projectId || !task) {
-			return;
-		}
-
-		isHistoryModalOpen = true;
-		isHistoryModalLoading = true;
-		historyModalError = '';
-		historyModalTaskTitle = task.title;
-		taskHistoryEntries = [];
-
-		try {
-			taskHistoryEntries = await tasksRepo.listTaskHistory(projectId, task.id);
-		} catch (error) {
-			historyModalError = error instanceof Error ? error.message : '履歴の取得に失敗しました。';
-		} finally {
-			isHistoryModalLoading = false;
-		}
-	}
-
-	function closeHistoryModal(): void {
-		isHistoryModalOpen = false;
-		isHistoryModalLoading = false;
-		historyModalError = '';
-		historyModalTaskTitle = '';
-		taskHistoryEntries = [];
 	}
 
 	async function submitTask(event: SubmitEvent): Promise<void> {
@@ -596,9 +548,8 @@
 			{selectedProjectId}
 			hasSelectedTask={Boolean(selectedTask)}
 			onProjectChange={(projectId) => void changeProject(projectId)}
-			onOpenHistory={() => void openHistoryModal()}
 			onCreate={openCreateModal}
-			onEdit={() => openEditModal()}
+			onEdit={() => openTaskEditPage()}
 			onDelete={deleteSelectedTask}
 			onExport={(format) => void exportTasks(format)}
 			exportDisabled={!canExportTasks}
@@ -645,7 +596,7 @@
 					columnWidths={listColumnWidths}
 					isAutoWidth={isListColumnAuto}
 					onSelect={selectTask}
-					onEdit={openEditModal}
+					onEdit={openTaskEditPage}
 					onReorder={reorderTasks}
 					onColumnWidthsChange={setListColumnWidths}
 					onAutoFit={autoFitListColumns}
@@ -657,7 +608,7 @@
 					{getAssigneeSummary}
 					{hasDependencyViolation}
 					onSelect={selectTask}
-					onEdit={openEditModal}
+					onEdit={openTaskEditPage}
 					onPreviewChange={setTaskDatePreview}
 					onPreviewClear={clearTaskDatePreview}
 					onCommitDates={commitTaskDateRange}
@@ -690,13 +641,5 @@
 		onProgressChange={(value) => (taskForm.progress = value)}
 		onToggleAssignee={toggleFormAssignee}
 		onPredecessorChange={(value) => (taskForm.predecessorTaskId = value)}
-	/>
-	<TaskHistoryModal
-		open={isHistoryModalOpen}
-		taskTitle={historyModalTaskTitle}
-		entries={taskHistoryEntries}
-		isLoading={isHistoryModalLoading}
-		error={historyModalError}
-		onClose={closeHistoryModal}
 	/>
 </div>

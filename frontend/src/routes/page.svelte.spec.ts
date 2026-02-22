@@ -33,7 +33,7 @@ describe('/+page.svelte', () => {
 		await renderPage();
 		await expect.element(page.getByRole('combobox', { name: 'Project' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Task 追加' })).toBeInTheDocument();
-		await expect.element(page.getByRole('button', { name: '変更履歴' })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '出力' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Day' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Week' })).toBeInTheDocument();
@@ -116,17 +116,9 @@ describe('/+page.svelte', () => {
 		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
 	});
 
-	it('should open task history modal from toolbar button', async () => {
+	it('should keep edit button enabled when task is selected', async () => {
 		await renderPage();
 
-		await page.getByRole('button', { name: '変更履歴' }).click();
-
-		await expect.element(page.getByRole('heading', { name: 'タスク変更履歴' })).toBeInTheDocument();
-		await expect.element(page.getByText('created')).toBeInTheDocument();
-
-		await page.getByRole('button', { name: 'close-history' }).click();
-		await expect
-			.element(page.getByRole('heading', { name: 'タスク変更履歴' }))
-			.not.toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: 'Edit' })).toBeEnabled();
 	});
 });
