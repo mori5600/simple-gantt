@@ -11,6 +11,7 @@ import {
 import {
 	createTaskController,
 	deleteTaskController,
+	listTaskHistoryController,
 	listTasksController,
 	reorderTasksController,
 	updateTaskController
@@ -37,6 +38,7 @@ export function registerApiRoutes(app: Hono): void {
 	app.patch('/api/users/:id', updateUserController);
 	app.delete('/api/users/:id', deleteUserController);
 	app.get('/api/tasks', listTasksController);
+	app.get('/api/tasks/:id/history', listTaskHistoryController);
 	app.post('/api/tasks', createTaskController);
 	app.patch('/api/tasks/:id', updateTaskController);
 	app.delete('/api/tasks/:id', deleteTaskController);

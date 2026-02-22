@@ -6,6 +6,7 @@ const {
 	updateTaskUseCaseMock,
 	deleteTaskUseCaseMock,
 	reorderTasksUseCaseMock,
+	listTaskHistoryUseCaseMock,
 	ProjectNotFoundErrorMock,
 	TaskModelValidationErrorMock,
 	TaskOptimisticLockErrorMock
@@ -20,6 +21,7 @@ const {
 		updateTaskUseCaseMock: vi.fn(),
 		deleteTaskUseCaseMock: vi.fn(),
 		reorderTasksUseCaseMock: vi.fn(),
+		listTaskHistoryUseCaseMock: vi.fn(),
 		ProjectNotFoundErrorMock,
 		TaskModelValidationErrorMock,
 		TaskOptimisticLockErrorMock
@@ -32,6 +34,7 @@ vi.mock('../usecases/task-usecases', () => ({
 	updateTaskUseCase: updateTaskUseCaseMock,
 	deleteTaskUseCase: deleteTaskUseCaseMock,
 	reorderTasksUseCase: reorderTasksUseCaseMock,
+	listTaskHistoryUseCase: listTaskHistoryUseCaseMock,
 	ProjectNotFoundError: ProjectNotFoundErrorMock,
 	TaskModelValidationError: TaskModelValidationErrorMock,
 	TaskOptimisticLockError: TaskOptimisticLockErrorMock
@@ -91,6 +94,49 @@ describe('task routes', () => {
 			}
 		]);
 		expect(listTasksUseCaseMock).toHaveBeenCalledWith('project-1');
+	});
+
+	it('GET /api/tasks/:id/history should return task history rows', async () => {
+		listTaskHistoryUseCaseMock.mockResolvedValueOnce([
+			{
+				id: 'history-1',
+				taskId: 'task-1',
+				projectId: 'project-1',
+				action: 'updated',
+				changedFields: ['title'],
+				title: '更新後タスク',
+				note: '',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				progress: 40,
+				assigneeIds: ['user-1'],
+				predecessorTaskId: null,
+				createdAt: new Date('2026-02-21T00:00:00.000Z')
+			}
+		]);
+
+		const response = await createApp().request('/api/tasks/task-1/history?projectId=project-1');
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body).toEqual([
+			{
+				id: 'history-1',
+				taskId: 'task-1',
+				projectId: 'project-1',
+				action: 'updated',
+				changedFields: ['title'],
+				title: '更新後タスク',
+				note: '',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				progress: 40,
+				assigneeIds: ['user-1'],
+				predecessorTaskId: null,
+				createdAt: '2026-02-21T00:00:00.000Z'
+			}
+		]);
+		expect(listTaskHistoryUseCaseMock).toHaveBeenCalledWith('project-1', 'task-1');
 	});
 
 	it('POST /api/tasks should create task', async () => {

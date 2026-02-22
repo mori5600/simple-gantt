@@ -1,4 +1,5 @@
 import type { Prisma as PrismaType } from '@prisma/client';
+import { logger } from '../lib/logger';
 import { prisma } from './db';
 import {
 	taskInclude,
@@ -21,6 +22,83 @@ export type TaskRecord = {
 	sortOrder: number;
 	predecessorTaskId: string | null;
 	updatedAt: Date;
+};
+
+export type TaskHistoryAction = 'created' | 'updated' | 'deleted';
+
+export type TaskHistoryRecord = {
+	id: string;
+	taskId: string;
+	projectId: string;
+	action: TaskHistoryAction;
+	changedFields: string[];
+	title: string;
+	note: string;
+	startDate: string;
+	endDate: string;
+	progress: number;
+	assigneeIds: string[];
+	predecessorTaskId: string | null;
+	createdAt: Date;
+};
+
+type TaskHistoryDelegate = {
+	create: (args: {
+		data: {
+			id: string;
+			taskId: string;
+			projectId: string;
+			action: string;
+			changedFields: string;
+			title: string;
+			note: string;
+			startDate: string;
+			endDate: string;
+			progress: number;
+			assigneeIds: string;
+			predecessorTaskId: string | null;
+		};
+	}) => Promise<{
+		id: string;
+		taskId: string;
+		projectId: string;
+		action: string;
+		changedFields: string;
+		title: string;
+		note: string;
+		startDate: string;
+		endDate: string;
+		progress: number;
+		assigneeIds: string;
+		predecessorTaskId: string | null;
+		createdAt: Date;
+	}>;
+	findMany: (args: {
+		where: {
+			projectId: string;
+			taskId: string;
+		};
+		orderBy: Array<{
+			createdAt?: 'desc' | 'asc';
+			id?: 'desc' | 'asc';
+		}>;
+	}) => Promise<
+		Array<{
+			id: string;
+			taskId: string;
+			projectId: string;
+			action: string;
+			changedFields: string;
+			title: string;
+			note: string;
+			startDate: string;
+			endDate: string;
+			progress: number;
+			assigneeIds: string;
+			predecessorTaskId: string | null;
+			createdAt: Date;
+		}>
+	>;
 };
 
 export async function findProjectById(
@@ -107,6 +185,147 @@ export async function createTaskAssignees(
 			userId
 		}))
 	});
+}
+
+function parseStringArrayOrEmpty(value: string): string[] {
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		if (!Array.isArray(parsed)) {
+			return [];
+		}
+		return parsed.filter((item): item is string => typeof item === 'string');
+	} catch {
+		return [];
+	}
+}
+
+function toTaskHistoryRecord(row: {
+	id: string;
+	taskId: string;
+	projectId: string;
+	action: string;
+	changedFields: string;
+	title: string;
+	note: string;
+	startDate: string;
+	endDate: string;
+	progress: number;
+	assigneeIds: string;
+	predecessorTaskId: string | null;
+	createdAt: Date;
+}): TaskHistoryRecord {
+	return {
+		id: row.id,
+		taskId: row.taskId,
+		projectId: row.projectId,
+		action: row.action as TaskHistoryAction,
+		changedFields: parseStringArrayOrEmpty(row.changedFields),
+		title: row.title,
+		note: row.note,
+		startDate: row.startDate,
+		endDate: row.endDate,
+		progress: row.progress,
+		assigneeIds: parseStringArrayOrEmpty(row.assigneeIds),
+		predecessorTaskId: row.predecessorTaskId,
+		createdAt: row.createdAt
+	};
+}
+
+export async function createTaskHistoryRecord(
+	params: {
+		taskId: string;
+		projectId: string;
+		action: TaskHistoryAction;
+		changedFields: string[];
+		title: string;
+		note: string;
+		startDate: string;
+		endDate: string;
+		progress: number;
+		assigneeIds: string[];
+		predecessorTaskId: string | null;
+	},
+	db: DbClient = prisma
+): Promise<TaskHistoryRecord | null> {
+	const delegate = resolveTaskHistoryDelegate(db);
+	if (!delegate) {
+		return null;
+	}
+
+	try {
+		const created = await delegate.create({
+			data: {
+				id: crypto.randomUUID(),
+				taskId: params.taskId,
+				projectId: params.projectId,
+				action: params.action,
+				changedFields: JSON.stringify(params.changedFields),
+				title: params.title,
+				note: params.note,
+				startDate: params.startDate,
+				endDate: params.endDate,
+				progress: params.progress,
+				assigneeIds: JSON.stringify(params.assigneeIds),
+				predecessorTaskId: params.predecessorTaskId
+			}
+		});
+
+		return toTaskHistoryRecord(created);
+	} catch (error) {
+		if (isMissingTableError(error)) {
+			logger.warn({ err: error }, 'taskHistory table is missing; skip history logging');
+			return null;
+		}
+		throw error;
+	}
+}
+
+export async function listTaskHistoryByTaskIdInProject(
+	projectId: string,
+	taskId: string,
+	db: DbClient = prisma
+): Promise<TaskHistoryRecord[]> {
+	const delegate = resolveTaskHistoryDelegate(db);
+	if (!delegate) {
+		return [];
+	}
+
+	try {
+		const rows = await delegate.findMany({
+			where: {
+				projectId,
+				taskId
+			},
+			orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
+		});
+		return rows.map(toTaskHistoryRecord);
+	} catch (error) {
+		if (isMissingTableError(error)) {
+			logger.warn({ err: error }, 'taskHistory table is missing; return empty history');
+			return [];
+		}
+		throw error;
+	}
+}
+
+function resolveTaskHistoryDelegate(db: DbClient): TaskHistoryDelegate | null {
+	const maybeDb = db as unknown as { taskHistory?: TaskHistoryDelegate };
+	const delegate = maybeDb.taskHistory;
+	if (!delegate) {
+		return null;
+	}
+	if (typeof delegate.create !== 'function' || typeof delegate.findMany !== 'function') {
+		return null;
+	}
+	return delegate;
+}
+
+function isMissingTableError(error: unknown): boolean {
+	if (!error || typeof error !== 'object') {
+		return false;
+	}
+	const maybe = error as { code?: unknown };
+	return maybe.code === 'P2021';
 }
 
 export async function findTaskByIdInProject(

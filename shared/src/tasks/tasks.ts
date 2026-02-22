@@ -21,6 +21,24 @@ export const taskSchema = z.object({
 	predecessorTaskId: predecessorTaskIdSchema
 });
 
+const taskHistoryActionSchema = z.enum(['created', 'updated', 'deleted']);
+
+export const taskHistoryEntrySchema = z.object({
+	id: z.string().min(1),
+	taskId: z.string().min(1),
+	projectId: z.string().min(1),
+	action: taskHistoryActionSchema,
+	changedFields: z.array(z.string().min(1)),
+	title: taskTitleSchema,
+	note: taskNoteSchema,
+	startDate: isoDateSchema,
+	endDate: isoDateSchema,
+	progress: taskProgressSchema,
+	assigneeIds: taskAssigneesSchema,
+	predecessorTaskId: predecessorTaskIdSchema,
+	createdAt: isoDateTimeSchema
+});
+
 export const createTaskSchema = z
 	.object({
 		title: taskTitleSchema,
@@ -84,6 +102,7 @@ export const reorderTasksSchema = z
 	});
 
 export type Task = z.infer<typeof taskSchema>;
+export type TaskHistoryEntry = z.infer<typeof taskHistoryEntrySchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type ReorderTasksInput = z.infer<typeof reorderTasksSchema>;

@@ -69,6 +69,21 @@ describe('apiTasksRepo', () => {
 		).rejects.toThrow('APIレスポンスの形式が不正です。');
 	});
 
+	it('listTaskHistory should reject invalid payload from API', async () => {
+		axiosMocks.client.get.mockResolvedValueOnce({
+			data: [
+				{
+					id: 'history-1',
+					taskId: 'task-1'
+				}
+			]
+		});
+
+		await expect(apiTasksRepo.listTaskHistory('project-1', 'task-1')).rejects.toThrow(
+			'APIレスポンスの形式が不正です。'
+		);
+	});
+
 	it('listProjects should keep server error messages for axios errors', async () => {
 		axiosMocks.client.get.mockRejectedValueOnce({
 			isAxiosError: true,

@@ -4,6 +4,7 @@ import { readJson } from '../lib/http';
 import {
 	createTaskUseCase,
 	deleteTaskUseCase,
+	listTaskHistoryUseCase,
 	listTasksUseCase,
 	ProjectNotFoundError,
 	reorderTasksUseCase,
@@ -12,7 +13,7 @@ import {
 	updateTaskUseCase
 } from '../usecases/task-usecases';
 import { createTaskSchema, reorderTasksSchema, updateTaskSchema } from '../schemas/task-schemas';
-import { toApiTask } from '../serializers/serializers';
+import { toApiTask, toApiTaskHistory } from '../serializers/serializers';
 
 function handleTaskValidationError(error: unknown): never {
 	if (error instanceof ProjectNotFoundError) {
@@ -53,6 +54,18 @@ export async function createTaskController(c: Context) {
 	try {
 		const created = await createTaskUseCase(projectId, payload);
 		return c.json(toApiTask(created), 201);
+	} catch (error) {
+		handleTaskValidationError(error);
+	}
+}
+
+export async function listTaskHistoryController(c: Context) {
+	const projectId = requireProjectId(c);
+	const taskId = c.req.param('id');
+
+	try {
+		const history = await listTaskHistoryUseCase(projectId, taskId);
+		return c.json(history.map(toApiTaskHistory));
 	} catch (error) {
 		handleTaskValidationError(error);
 	}

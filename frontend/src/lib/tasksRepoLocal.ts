@@ -5,6 +5,7 @@ import type {
 	Project,
 	ProjectSummary,
 	Task,
+	TaskHistoryEntry,
 	TasksRepo,
 	UpdateProjectInput,
 	UpdateTaskInput,
@@ -41,6 +42,7 @@ export const LOCAL_USERS: readonly User[] = [
 let taskCache: Task[] | null = null;
 let projectCache: Project[] | null = null;
 let userCache: User[] | null = null;
+let taskHistoryCache: TaskHistoryEntry[] | null = null;
 
 function toIsoDate(date: Date): string {
 	const year = date.getUTCFullYear();
@@ -115,6 +117,14 @@ function cloneTask(task: Task): Task {
 		updatedAt: task.updatedAt,
 		assigneeIds: [...task.assigneeIds],
 		predecessorTaskId: task.predecessorTaskId
+	};
+}
+
+function cloneTaskHistoryEntry(entry: TaskHistoryEntry): TaskHistoryEntry {
+	return {
+		...entry,
+		changedFields: [...entry.changedFields],
+		assigneeIds: [...entry.assigneeIds]
 	};
 }
 
@@ -371,6 +381,78 @@ function ensureData(): Task[] {
 	return taskCache;
 }
 
+function createInitialTaskHistory(tasks: Task[]): TaskHistoryEntry[] {
+	return tasks.map((task) => ({
+		id: `history-created-${task.id}`,
+		taskId: task.id,
+		projectId: task.projectId,
+		action: 'created',
+		changedFields: [
+			'title',
+			'note',
+			'startDate',
+			'endDate',
+			'progress',
+			'assigneeIds',
+			'predecessorTaskId'
+		],
+		title: task.title,
+		note: task.note,
+		startDate: task.startDate,
+		endDate: task.endDate,
+		progress: task.progress,
+		assigneeIds: [...task.assigneeIds],
+		predecessorTaskId: task.predecessorTaskId,
+		createdAt: task.updatedAt
+	}));
+}
+
+function ensureTaskHistoryData(): TaskHistoryEntry[] {
+	if (!taskHistoryCache) {
+		taskHistoryCache = createInitialTaskHistory(ensureData());
+	}
+	return taskHistoryCache;
+}
+
+function appendTaskHistoryEntry(params: {
+	task: Task;
+	action: TaskHistoryEntry['action'];
+	changedFields: string[];
+}): void {
+	const history = ensureTaskHistoryData();
+	taskHistoryCache = [
+		{
+			id: `history-${createTaskId()}`,
+			taskId: params.task.id,
+			projectId: params.task.projectId,
+			action: params.action,
+			changedFields: [...params.changedFields],
+			title: params.task.title,
+			note: params.task.note,
+			startDate: params.task.startDate,
+			endDate: params.task.endDate,
+			progress: params.task.progress,
+			assigneeIds: [...params.task.assigneeIds],
+			predecessorTaskId: params.task.predecessorTaskId,
+			createdAt: nowIsoTimestamp()
+		},
+		...history
+	];
+}
+
+function isSameIdList(left: string[], right: string[]): boolean {
+	if (left.length !== right.length) {
+		return false;
+	}
+	const leftSet = new Set(left);
+	for (const id of right) {
+		if (!leftSet.has(id)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 export const localTasksRepo: TasksRepo = {
 	async listProjects(): Promise<Project[]> {
 		return sortProjects(ensureProjectsData()).map(cloneProject);
@@ -542,6 +624,13 @@ export const localTasksRepo: TasksRepo = {
 		return listProjectTasks(ensureData(), projectId);
 	},
 
+	async listTaskHistory(projectId: string, taskId: string): Promise<TaskHistoryEntry[]> {
+		assertProjectExists(projectId);
+		return ensureTaskHistoryData()
+			.filter((entry) => entry.projectId === projectId && entry.taskId === taskId)
+			.map(cloneTaskHistoryEntry);
+	},
+
 	async create(projectId: string, input: CreateTaskInput): Promise<Task> {
 		assertProjectExists(projectId);
 		const tasks = ensureData();
@@ -564,6 +653,19 @@ export const localTasksRepo: TasksRepo = {
 
 		assertTaskFields(next);
 		taskCache = sortTasks([...tasks, next]);
+		appendTaskHistoryEntry({
+			task: next,
+			action: 'created',
+			changedFields: [
+				'title',
+				'note',
+				'startDate',
+				'endDate',
+				'progress',
+				'assigneeIds',
+				'predecessorTaskId'
+			]
+		});
 		return cloneTask(next);
 	},
 
@@ -602,6 +704,35 @@ export const localTasksRepo: TasksRepo = {
 
 		assertTaskFields(next);
 		taskCache = sortTasks(tasks.map((task) => (task.id === id ? next : task)));
+		const changedFields: string[] = [];
+		if (next.title !== target.title) {
+			changedFields.push('title');
+		}
+		if (next.note !== target.note) {
+			changedFields.push('note');
+		}
+		if (next.startDate !== target.startDate) {
+			changedFields.push('startDate');
+		}
+		if (next.endDate !== target.endDate) {
+			changedFields.push('endDate');
+		}
+		if (next.progress !== target.progress) {
+			changedFields.push('progress');
+		}
+		if (!isSameIdList(next.assigneeIds, target.assigneeIds)) {
+			changedFields.push('assigneeIds');
+		}
+		if (next.predecessorTaskId !== target.predecessorTaskId) {
+			changedFields.push('predecessorTaskId');
+		}
+		if (changedFields.length > 0) {
+			appendTaskHistoryEntry({
+				task: next,
+				action: 'updated',
+				changedFields
+			});
+		}
 		return cloneTask(next);
 	},
 
@@ -659,6 +790,7 @@ export const localTasksRepo: TasksRepo = {
 	async remove(projectId: string, id: string): Promise<void> {
 		assertProjectExists(projectId);
 		const tasks = ensureData();
+		const deletedTask = tasks.find((task) => task.projectId === projectId && task.id === id);
 		const updatedAt = nowIsoTimestamp();
 		const next = tasks
 			.filter((task) => !(task.projectId === projectId && task.id === id))
@@ -678,6 +810,13 @@ export const localTasksRepo: TasksRepo = {
 		}
 
 		taskCache = sortTasks(next);
+		if (deletedTask) {
+			appendTaskHistoryEntry({
+				task: { ...deletedTask, updatedAt },
+				action: 'deleted',
+				changedFields: ['deleted']
+			});
+		}
 	}
 };
 
@@ -685,4 +824,5 @@ export function resetLocalTaskCacheForTest(): void {
 	taskCache = null;
 	projectCache = null;
 	userCache = null;
+	taskHistoryCache = null;
 }

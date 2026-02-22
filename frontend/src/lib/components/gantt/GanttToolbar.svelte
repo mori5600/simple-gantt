@@ -17,6 +17,7 @@
 		onCreate,
 		onEdit,
 		onDelete,
+		onOpenHistory,
 		onExport,
 		onZoomChange
 	} = $props<{
@@ -30,6 +31,7 @@
 		onCreate: () => void;
 		onEdit: () => void;
 		onDelete: () => void;
+		onOpenHistory: () => void;
 		onExport: (format: ExportFormat) => void;
 		onZoomChange: (zoom: ZoomLevel) => void;
 	}>();
@@ -115,6 +117,14 @@
 					>
 						ユーザー管理
 					</a>
+					<button
+						type="button"
+						class="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+						onclick={onOpenHistory}
+						disabled={!hasSelectedTask}
+					>
+						変更履歴
+					</button>
 				</div>
 
 				<div class="flex flex-wrap items-center gap-2">

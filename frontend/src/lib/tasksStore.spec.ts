@@ -61,6 +61,7 @@ describe('tasksStore', () => {
 				}
 				return deferredB.promise;
 			}),
+			listTaskHistory: vi.fn().mockResolvedValue([]),
 			create: vi.fn(),
 			update: vi.fn(),
 			reorder: vi.fn(),

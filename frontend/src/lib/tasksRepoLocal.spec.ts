@@ -44,4 +44,22 @@ describe('localTasksRepo summaries', () => {
 		expect(userSummaries.find((summary) => summary.id === 'user-ito')?.taskCount).toBe(2);
 		expect(userSummaries.find((summary) => summary.id === 'user-yamada')?.taskCount).toBe(3);
 	});
+
+	it('listTaskHistory should return created and updated entries', async () => {
+		const before = await localTasksRepo.list('project-default');
+		const target = before[0];
+		const initialHistory = await localTasksRepo.listTaskHistory('project-default', target.id);
+
+		expect(initialHistory.length).toBeGreaterThan(0);
+		expect(initialHistory[0]?.action).toBe('created');
+
+		await localTasksRepo.update('project-default', target.id, {
+			updatedAt: target.updatedAt,
+			title: `${target.title} 更新`
+		});
+
+		const nextHistory = await localTasksRepo.listTaskHistory('project-default', target.id);
+		expect(nextHistory[0]?.action).toBe('updated');
+		expect(nextHistory[0]?.changedFields).toContain('title');
+	});
 });

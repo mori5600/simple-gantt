@@ -6,6 +6,7 @@ const {
 	countUsersByIdsMock,
 	createTaskAssigneesMock,
 	createTaskRecordMock,
+	createTaskHistoryRecordMock,
 	deleteTaskByIdInProjectMock,
 	findProjectByIdMock,
 	findTaskByIdInProjectMock,
@@ -13,6 +14,7 @@ const {
 	findTaskPredecessorInProjectMock,
 	findTaskUpdatedAtMock,
 	listTaskIdsByProjectIdMock,
+	listTaskHistoryByTaskIdInProjectMock,
 	listTasksByProjectIdMock,
 	nextTaskSortOrderMock,
 	replaceTaskAssigneesMock,
@@ -29,6 +31,7 @@ const {
 		countUsersByIdsMock: vi.fn(),
 		createTaskAssigneesMock: vi.fn(),
 		createTaskRecordMock: vi.fn(),
+		createTaskHistoryRecordMock: vi.fn(),
 		deleteTaskByIdInProjectMock: vi.fn(),
 		findProjectByIdMock: vi.fn(),
 		findTaskByIdInProjectMock: vi.fn(),
@@ -36,6 +39,7 @@ const {
 		findTaskPredecessorInProjectMock: vi.fn(),
 		findTaskUpdatedAtMock: vi.fn(),
 		listTaskIdsByProjectIdMock: vi.fn(),
+		listTaskHistoryByTaskIdInProjectMock: vi.fn(),
 		listTasksByProjectIdMock: vi.fn(),
 		nextTaskSortOrderMock: vi.fn(),
 		replaceTaskAssigneesMock: vi.fn(),
@@ -53,6 +57,7 @@ vi.mock('../models/task-model', () => ({
 	countUsersByIds: countUsersByIdsMock,
 	createTaskAssignees: createTaskAssigneesMock,
 	createTaskRecord: createTaskRecordMock,
+	createTaskHistoryRecord: createTaskHistoryRecordMock,
 	deleteTaskByIdInProject: deleteTaskByIdInProjectMock,
 	findProjectById: findProjectByIdMock,
 	findTaskByIdInProject: findTaskByIdInProjectMock,
@@ -60,6 +65,7 @@ vi.mock('../models/task-model', () => ({
 	findTaskPredecessorInProject: findTaskPredecessorInProjectMock,
 	findTaskUpdatedAt: findTaskUpdatedAtMock,
 	listTaskIdsByProjectId: listTaskIdsByProjectIdMock,
+	listTaskHistoryByTaskIdInProject: listTaskHistoryByTaskIdInProjectMock,
 	listTasksByProjectId: listTasksByProjectIdMock,
 	nextTaskSortOrder: nextTaskSortOrderMock,
 	replaceTaskAssignees: replaceTaskAssigneesMock,
@@ -71,6 +77,7 @@ vi.mock('../models/task-model', () => ({
 import {
 	createTaskUseCase,
 	deleteTaskUseCase,
+	listTaskHistoryUseCase,
 	listTasksUseCase,
 	ProjectNotFoundError,
 	reorderTasksUseCase,
@@ -143,7 +150,15 @@ describe('task-usecases', () => {
 		nextTaskSortOrderMock.mockResolvedValueOnce(4);
 		createTaskRecordMock.mockResolvedValueOnce({ id: 'task-uuid' });
 		findTaskByIdOrThrowMock.mockResolvedValueOnce(
-			createTaskFixture({ id: 'task-uuid', sortOrder: 4 })
+			createTaskFixture({
+				id: 'task-uuid',
+				title: '新規',
+				note: '',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				progress: 0,
+				sortOrder: 4
+			})
 		);
 
 		const actual = await createTaskUseCase('project-1', {
@@ -171,7 +186,41 @@ describe('task-usecases', () => {
 			txMock
 		);
 		expect(createTaskAssigneesMock).toHaveBeenCalledWith('task-uuid', ['user-1'], txMock);
-		expect(actual).toEqual(createTaskFixture({ id: 'task-uuid', sortOrder: 4 }));
+		expect(createTaskHistoryRecordMock).toHaveBeenCalledWith(
+			{
+				taskId: 'task-uuid',
+				projectId: 'project-1',
+				action: 'created',
+				changedFields: [
+					'title',
+					'note',
+					'startDate',
+					'endDate',
+					'progress',
+					'assigneeIds',
+					'predecessorTaskId'
+				],
+				title: '新規',
+				note: '',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				progress: 0,
+				assigneeIds: ['user-1'],
+				predecessorTaskId: null
+			},
+			txMock
+		);
+		expect(actual).toEqual(
+			createTaskFixture({
+				id: 'task-uuid',
+				title: '新規',
+				note: '',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				progress: 0,
+				sortOrder: 4
+			})
+		);
 		randomUUIDMock.mockRestore();
 	});
 
@@ -256,11 +305,22 @@ describe('task-usecases', () => {
 			txMock
 		);
 		expect(replaceTaskAssigneesMock).toHaveBeenCalledWith('task-1', ['user-2'], txMock);
+		expect(createTaskHistoryRecordMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				taskId: 'task-1',
+				projectId: 'project-1',
+				action: 'updated',
+				changedFields: ['assigneeIds'],
+				assigneeIds: ['user-2']
+			}),
+			txMock
+		);
 		expect(actual).toEqual(updated);
 	});
 
 	it('deleteTaskUseCase should return false when task does not exist', async () => {
 		findProjectByIdMock.mockResolvedValueOnce({ id: 'project-1' });
+		findTaskByIdInProjectMock.mockResolvedValueOnce(null);
 		deleteTaskByIdInProjectMock.mockResolvedValueOnce(0);
 
 		await expect(deleteTaskUseCase('project-1', 'task-missing')).resolves.toBe(false);
@@ -268,10 +328,51 @@ describe('task-usecases', () => {
 
 	it('deleteTaskUseCase should delete task when it exists', async () => {
 		findProjectByIdMock.mockResolvedValueOnce({ id: 'project-1' });
-		deleteTaskByIdInProjectMock.mockResolvedValueOnce(1);
+		findTaskByIdInProjectMock.mockReset();
+		findTaskByIdInProjectMock.mockResolvedValue(createTaskFixture());
+		deleteTaskByIdInProjectMock.mockReset();
+		deleteTaskByIdInProjectMock.mockResolvedValue(1);
 
 		await expect(deleteTaskUseCase('project-1', 'task-1')).resolves.toBe(true);
-		expect(deleteTaskByIdInProjectMock).toHaveBeenCalledWith('project-1', 'task-1');
+		expect(deleteTaskByIdInProjectMock).toHaveBeenCalledWith('project-1', 'task-1', txMock);
+		expect(createTaskHistoryRecordMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				taskId: 'task-1',
+				projectId: 'project-1',
+				action: 'deleted'
+			}),
+			txMock
+		);
+	});
+
+	it('listTaskHistoryUseCase should return history rows in project scope', async () => {
+		findProjectByIdMock.mockResolvedValueOnce({ id: 'project-1' });
+		listTaskHistoryByTaskIdInProjectMock.mockResolvedValueOnce([
+			{
+				id: 'history-1',
+				taskId: 'task-1',
+				projectId: 'project-1',
+				action: 'updated',
+				changedFields: ['title'],
+				title: '更新後',
+				note: '',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				progress: 40,
+				assigneeIds: ['user-1'],
+				predecessorTaskId: null,
+				createdAt: new Date('2026-02-21T00:00:00.000Z')
+			}
+		]);
+
+		await expect(listTaskHistoryUseCase('project-1', 'task-1')).resolves.toEqual([
+			expect.objectContaining({
+				id: 'history-1',
+				taskId: 'task-1',
+				action: 'updated'
+			})
+		]);
+		expect(listTaskHistoryByTaskIdInProjectMock).toHaveBeenCalledWith('project-1', 'task-1');
 	});
 
 	it('reorderTasksUseCase should reject when ids count does not match', async () => {

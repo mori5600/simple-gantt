@@ -28,6 +28,24 @@ model Task {
   @@index([projectId, predecessorTaskId])
 }
 
+model TaskHistory {
+  id                String   @id
+  taskId            String
+  projectId         String
+  action            String
+  changedFields     String
+  title             String
+  note              String   @default("")
+  startDate         String
+  endDate           String
+  progress          Int
+  assigneeIds       String
+  predecessorTaskId String?
+  createdAt         DateTime @default(now())
+
+  @@index([projectId, taskId, createdAt])
+}
+
 model Project {
   id        String   @id
   name      String

@@ -3,6 +3,7 @@ import type { Prisma as PrismaType } from '@prisma/client';
 import {
 	countUsersByIds,
 	createTaskAssignees,
+	createTaskHistoryRecord,
 	createTaskRecord,
 	deleteTaskByIdInProject,
 	findProjectById,
@@ -11,9 +12,11 @@ import {
 	findTaskPredecessorInProject,
 	findTaskUpdatedAt,
 	listTaskIdsByProjectId,
+	listTaskHistoryByTaskIdInProject,
 	listTasksByProjectId,
 	nextTaskSortOrder,
 	replaceTaskAssignees,
+	type TaskHistoryRecord,
 	type TaskWithAssignees,
 	updateTaskSortOrder,
 	updateTaskWhereUpdatedAt,
@@ -81,7 +84,32 @@ export async function createTaskUseCase(
 		);
 
 		await createTaskAssignees(task.id, payload.assigneeIds, tx);
-		return findTaskByIdOrThrow(task.id, tx);
+		const created = await findTaskByIdOrThrow(task.id, tx);
+		await createTaskHistoryRecord(
+			{
+				taskId: created.id,
+				projectId: created.projectId,
+				action: 'created',
+				changedFields: [
+					'title',
+					'note',
+					'startDate',
+					'endDate',
+					'progress',
+					'assigneeIds',
+					'predecessorTaskId'
+				],
+				title: created.title,
+				note: created.note,
+				startDate: created.startDate,
+				endDate: created.endDate,
+				progress: created.progress,
+				assigneeIds: created.assignees.map((assignee) => assignee.userId),
+				predecessorTaskId: created.predecessorTaskId
+			},
+			tx
+		);
+		return created;
 	});
 }
 
@@ -126,6 +154,7 @@ export async function updateTaskUseCase(
 		const nextAssigneeIds = payload.assigneeIds ?? existingAssigneeIds;
 		const assigneeIdsChanged =
 			payload.assigneeIds !== undefined && !isSameIdList(existingAssigneeIds, nextAssigneeIds);
+		const changedFields: string[] = [];
 		const taskFieldsChanged =
 			nextTitle !== existing.title ||
 			nextNote !== existing.note ||
@@ -134,6 +163,30 @@ export async function updateTaskUseCase(
 			nextProgress !== existing.progress ||
 			nextSortOrder !== existing.sortOrder ||
 			nextPredecessorTaskId !== existing.predecessorTaskId;
+		if (nextTitle !== existing.title) {
+			changedFields.push('title');
+		}
+		if (nextNote !== existing.note) {
+			changedFields.push('note');
+		}
+		if (nextStartDate !== existing.startDate) {
+			changedFields.push('startDate');
+		}
+		if (nextEndDate !== existing.endDate) {
+			changedFields.push('endDate');
+		}
+		if (nextProgress !== existing.progress) {
+			changedFields.push('progress');
+		}
+		if (nextSortOrder !== existing.sortOrder) {
+			changedFields.push('sortOrder');
+		}
+		if (nextPredecessorTaskId !== existing.predecessorTaskId) {
+			changedFields.push('predecessorTaskId');
+		}
+		if (assigneeIdsChanged) {
+			changedFields.push('assigneeIds');
+		}
 
 		if (payload.assigneeIds !== undefined) {
 			await assertUsersExist(payload.assigneeIds, tx);
@@ -207,7 +260,25 @@ export async function updateTaskUseCase(
 			await replaceTaskAssignees(taskId, nextAssigneeIds, tx);
 		}
 
-		return findTaskByIdOrThrow(taskId, tx);
+		const updated = await findTaskByIdOrThrow(taskId, tx);
+		await createTaskHistoryRecord(
+			{
+				taskId: updated.id,
+				projectId: updated.projectId,
+				action: 'updated',
+				changedFields,
+				title: updated.title,
+				note: updated.note,
+				startDate: updated.startDate,
+				endDate: updated.endDate,
+				progress: updated.progress,
+				assigneeIds: updated.assignees.map((assignee) => assignee.userId),
+				predecessorTaskId: updated.predecessorTaskId
+			},
+			tx
+		);
+
+		return updated;
 	});
 }
 
@@ -215,9 +286,44 @@ export async function updateTaskUseCase(
  * task 削除を idempotent に扱い、呼び出し側が存在有無を真偽値で判定できるようにする。
  */
 export async function deleteTaskUseCase(projectId: string, taskId: string): Promise<boolean> {
+	return prisma.$transaction(async (tx) => {
+		await assertProjectExists(projectId, tx);
+		const existing = await findTaskByIdInProject(projectId, taskId, tx);
+		if (!existing) {
+			return false;
+		}
+
+		const deletedCount = await deleteTaskByIdInProject(projectId, taskId, tx);
+		if (deletedCount === 0) {
+			return false;
+		}
+
+		await createTaskHistoryRecord(
+			{
+				taskId: existing.id,
+				projectId: existing.projectId,
+				action: 'deleted',
+				changedFields: ['deleted'],
+				title: existing.title,
+				note: existing.note,
+				startDate: existing.startDate,
+				endDate: existing.endDate,
+				progress: existing.progress,
+				assigneeIds: existing.assignees.map((assignee) => assignee.userId),
+				predecessorTaskId: existing.predecessorTaskId
+			},
+			tx
+		);
+		return true;
+	});
+}
+
+export async function listTaskHistoryUseCase(
+	projectId: string,
+	taskId: string
+): Promise<TaskHistoryRecord[]> {
 	await assertProjectExists(projectId);
-	const deletedCount = await deleteTaskByIdInProject(projectId, taskId);
-	return deletedCount > 0;
+	return listTaskHistoryByTaskIdInProject(projectId, taskId);
 }
 
 /**

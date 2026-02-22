@@ -4,6 +4,7 @@ import {
 	toApiProject,
 	toApiProjectSummary,
 	toApiTask,
+	toApiTaskHistory,
 	toApiUser,
 	toApiUserSummary
 } from './serializers';
@@ -107,6 +108,40 @@ describe('serializers', () => {
 			updatedAt: '2026-02-19T00:00:00.000Z',
 			assigneeIds: ['user-1', 'user-2'],
 			predecessorTaskId: null
+		});
+	});
+
+	it('toApiTaskHistory should serialize createdAt and arrays', () => {
+		const actual = toApiTaskHistory({
+			id: 'history-1',
+			taskId: 'task-1',
+			projectId: 'project-1',
+			action: 'updated',
+			changedFields: ['title', 'progress'],
+			title: '更新後',
+			note: 'note',
+			startDate: '2026-02-20',
+			endDate: '2026-02-21',
+			progress: 50,
+			assigneeIds: ['user-1'],
+			predecessorTaskId: null,
+			createdAt: new Date('2026-02-22T00:00:00.000Z')
+		});
+
+		expect(actual).toEqual({
+			id: 'history-1',
+			taskId: 'task-1',
+			projectId: 'project-1',
+			action: 'updated',
+			changedFields: ['title', 'progress'],
+			title: '更新後',
+			note: 'note',
+			startDate: '2026-02-20',
+			endDate: '2026-02-21',
+			progress: 50,
+			assigneeIds: ['user-1'],
+			predecessorTaskId: null,
+			createdAt: '2026-02-22T00:00:00.000Z'
 		});
 	});
 });

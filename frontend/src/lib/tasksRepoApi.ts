@@ -12,6 +12,7 @@ import type {
 	Project,
 	ProjectSummary,
 	Task,
+	TaskHistoryEntry,
 	TasksRepo,
 	UpdateUserInput,
 	UpdateTaskInput,
@@ -37,6 +38,75 @@ const projectSummariesSchema = projectSummarySchema.array();
 const usersSchema = userSchema.array();
 const userSummariesSchema = userSummarySchema.array();
 const tasksSchema = taskSchema.array();
+
+function isIsoDate(value: unknown): value is string {
+	return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isIsoDateTime(value: unknown): value is string {
+	return typeof value === 'string' && value.includes('T') && !Number.isNaN(Date.parse(value));
+}
+
+function isNonEmptyString(value: unknown): value is string {
+	return typeof value === 'string' && value.trim().length > 0;
+}
+
+const taskHistorySchema = {
+	safeParse(data: unknown): { success: true; data: TaskHistoryEntry[] } | { success: false } {
+		if (!Array.isArray(data)) {
+			return { success: false };
+		}
+
+		const parsed: TaskHistoryEntry[] = [];
+		for (const item of data) {
+			if (!item || typeof item !== 'object') {
+				return { success: false };
+			}
+
+			const entry = item as Record<string, unknown>;
+			if (
+				!isNonEmptyString(entry.id) ||
+				!isNonEmptyString(entry.taskId) ||
+				!isNonEmptyString(entry.projectId) ||
+				(entry.action !== 'created' && entry.action !== 'updated' && entry.action !== 'deleted') ||
+				!Array.isArray(entry.changedFields) ||
+				!entry.changedFields.every((field) => isNonEmptyString(field)) ||
+				!isNonEmptyString(entry.title) ||
+				typeof entry.note !== 'string' ||
+				!isIsoDate(entry.startDate) ||
+				!isIsoDate(entry.endDate) ||
+				typeof entry.progress !== 'number' ||
+				!Number.isInteger(entry.progress) ||
+				entry.progress < 0 ||
+				entry.progress > 100 ||
+				!Array.isArray(entry.assigneeIds) ||
+				!entry.assigneeIds.every((id) => isNonEmptyString(id)) ||
+				!(entry.predecessorTaskId === null || isNonEmptyString(entry.predecessorTaskId)) ||
+				!isIsoDateTime(entry.createdAt)
+			) {
+				return { success: false };
+			}
+
+			parsed.push({
+				id: entry.id,
+				taskId: entry.taskId,
+				projectId: entry.projectId,
+				action: entry.action,
+				changedFields: [...entry.changedFields],
+				title: entry.title,
+				note: entry.note,
+				startDate: entry.startDate,
+				endDate: entry.endDate,
+				progress: entry.progress,
+				assigneeIds: [...entry.assigneeIds],
+				predecessorTaskId: entry.predecessorTaskId,
+				createdAt: entry.createdAt
+			});
+		}
+
+		return { success: true, data: parsed };
+	}
+};
 
 function toErrorMessage(error: unknown): string {
 	if (axios.isAxiosError(error)) {
@@ -168,6 +238,19 @@ export const apiTasksRepo: TasksRepo = {
 				}
 			});
 			return parseApiResponse(tasksSchema, response.data);
+		} catch (error) {
+			throw new Error(toErrorMessage(error));
+		}
+	},
+
+	async listTaskHistory(projectId: string, taskId: string) {
+		try {
+			const response = await apiClient.get(`/api/tasks/${taskId}/history`, {
+				params: {
+					projectId
+				}
+			});
+			return parseApiResponse(taskHistorySchema, response.data);
 		} catch (error) {
 			throw new Error(toErrorMessage(error));
 		}

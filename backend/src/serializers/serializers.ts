@@ -1,6 +1,13 @@
 import type { ProjectRecord } from '../models/project-model';
 import type { TaskWithAssignees } from '../models/task-model';
-import type { ApiProject, ApiProjectSummary, ApiTask, ApiUser, ApiUserSummary } from './types';
+import type {
+	ApiProject,
+	ApiProjectSummary,
+	ApiTask,
+	ApiTaskHistory,
+	ApiUser,
+	ApiUserSummary
+} from './types';
 
 export function toApiUser(user: { id: string; name: string; updatedAt: Date }): ApiUser {
 	return {
@@ -62,5 +69,37 @@ export function toApiTask(task: TaskWithAssignees): ApiTask {
 		updatedAt: task.updatedAt.toISOString(),
 		assigneeIds: task.assignees.map((assignee) => assignee.userId),
 		predecessorTaskId: task.predecessorTaskId
+	};
+}
+
+export function toApiTaskHistory(entry: {
+	id: string;
+	taskId: string;
+	projectId: string;
+	action: 'created' | 'updated' | 'deleted';
+	changedFields: string[];
+	title: string;
+	note: string;
+	startDate: string;
+	endDate: string;
+	progress: number;
+	assigneeIds: string[];
+	predecessorTaskId: string | null;
+	createdAt: Date;
+}): ApiTaskHistory {
+	return {
+		id: entry.id,
+		taskId: entry.taskId,
+		projectId: entry.projectId,
+		action: entry.action,
+		changedFields: [...entry.changedFields],
+		title: entry.title,
+		note: entry.note,
+		startDate: entry.startDate,
+		endDate: entry.endDate,
+		progress: entry.progress,
+		assigneeIds: [...entry.assigneeIds],
+		predecessorTaskId: entry.predecessorTaskId,
+		createdAt: entry.createdAt.toISOString()
 	};
 }
