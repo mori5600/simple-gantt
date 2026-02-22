@@ -17,17 +17,35 @@ import {
 } from '../models/project-model';
 import { prisma } from '../models/db';
 
+/**
+ * ユースケース層の入力不備をインフラ例外と分離し、HTTP 層で業務エラーとして扱うための例外。
+ */
 export class ProjectModelValidationError extends Error {}
+/**
+ * 同一 project への同時更新で更新ロストが起きるのを防ぐための例外。
+ */
 export class ProjectOptimisticLockError extends Error {}
 
+/**
+ * 並び順を含む project 一覧の現在状態を取得する。
+ * UI 側で再並び替えや差分反映の基準に使うため、加工せず永続層の順序を返す。
+ */
 export async function listProjectsUseCase(): Promise<ProjectRecord[]> {
 	return listProjects();
 }
 
+/**
+ * project 一覧画面で件数バッジを追加クエリなしに描画できるよう、
+ * task 件数を含む集約結果を返す。
+ */
 export async function listProjectSummariesUseCase(): Promise<ProjectSummaryRecord[]> {
 	return listProjectsWithTaskCount();
 }
 
+/**
+ * 新規 project を既存 project 群の末尾に追加する。
+ * sortOrder をここで確定し、表示順の決定ロジックを呼び出し側へ漏らさない。
+ */
 export async function createProjectUseCase(payload: CreateProjectInput): Promise<ProjectRecord> {
 	return createProjectRecord({
 		id: `project-${crypto.randomUUID()}`,
@@ -36,6 +54,10 @@ export async function createProjectUseCase(payload: CreateProjectInput): Promise
 	});
 }
 
+/**
+ * 楽観ロックで project 名の更新を直列化し、最後に保存した値が
+ * 無言で上書きされる事故を防ぐ。
+ */
 export async function updateProjectUseCase(
 	projectId: string,
 	payload: UpdateProjectInput
@@ -79,6 +101,9 @@ export async function updateProjectUseCase(
 	return updateProjectById(projectId, nextName);
 }
 
+/**
+ * タスクを保持した project の削除を禁止し、計画データの参照一貫性を守る。
+ */
 export async function deleteProjectUseCase(projectId: string): Promise<boolean> {
 	const taskCount = await findProjectTaskCountById(projectId);
 	if (taskCount === null) {
@@ -93,6 +118,10 @@ export async function deleteProjectUseCase(projectId: string): Promise<boolean> 
 	return true;
 }
 
+/**
+ * 並び替え入力を「全件の完全順序」として検証してから反映する。
+ * 部分更新を許すと重複や欠落順序が生まれるため、全件一致を必須にする。
+ */
 export async function reorderProjectsUseCase(ids: string[]): Promise<ProjectRecord[]> {
 	const projectIds = new Set(await listProjectIds());
 	if (projectIds.size !== ids.length) {

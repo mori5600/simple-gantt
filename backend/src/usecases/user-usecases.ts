@@ -13,17 +13,32 @@ import {
 	type UserSummaryRecord
 } from '../models/user-model';
 
+/**
+ * ユースケース層で検出した業務制約違反を、実行時障害と区別して扱うための例外。
+ */
 export class UserModelValidationError extends Error {}
+/**
+ * 同時編集で他ユーザーの更新を上書きしないための楽観ロック例外。
+ */
 export class UserOptimisticLockError extends Error {}
 
+/**
+ * ユーザー管理画面の基準データとして、永続化されたユーザー一覧をそのまま返す。
+ */
 export async function listUsersUseCase(): Promise<UserRecord[]> {
 	return listUsers();
 }
 
+/**
+ * 一覧表示で task 件数を即時表示できるよう、集約済みユーザー情報を返す。
+ */
 export async function listUserSummariesUseCase(): Promise<UserSummaryRecord[]> {
 	return listUsersWithTaskCount();
 }
 
+/**
+ * ユーザー作成時に種別接頭辞付き ID を統一し、他エンティティとの識別を簡潔にする。
+ */
 export async function createUserUseCase(payload: CreateUserInput): Promise<UserRecord> {
 	return createUserRecord({
 		id: `user-${crypto.randomUUID()}`,
@@ -31,6 +46,9 @@ export async function createUserUseCase(payload: CreateUserInput): Promise<UserR
 	});
 }
 
+/**
+ * 楽観ロックで user 名更新を保護し、同時更新時の更新ロストを防ぐ。
+ */
 export async function updateUserUseCase(
 	userId: string,
 	payload: UpdateUserInput
@@ -74,6 +92,9 @@ export async function updateUserUseCase(
 	return updateUserById(userId, nextName);
 }
 
+/**
+ * 既存 task に割り当て済みの user を削除させず、担当者参照の整合性を守る。
+ */
 export async function deleteUserUseCase(userId: string): Promise<boolean> {
 	const assigneeCount = await findUserAssigneeCountById(userId);
 	if (assigneeCount === null) {

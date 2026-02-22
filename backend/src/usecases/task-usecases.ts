@@ -22,15 +22,33 @@ import {
 } from '../models/task-model';
 import { prisma } from '../models/db';
 
+/**
+ * task 操作で検出した業務ルール違反を、実行時障害と分離して扱うための例外。
+ */
 export class TaskModelValidationError extends Error {}
+/**
+ * task 操作時に親 project の存在を前提化するための例外。
+ * project 不在時に「空データ」と誤解されるのを防ぐ。
+ */
 export class ProjectNotFoundError extends Error {}
+/**
+ * 同一 task の同時更新で更新ロストが起きるのを防ぐ楽観ロック例外。
+ */
 export class TaskOptimisticLockError extends Error {}
 
+/**
+ * project が存在することを保証したうえで task 一覧を返す。
+ * 存在しない project と「task が 0 件」を明確に区別するための入口。
+ */
 export async function listTasksUseCase(projectId: string): Promise<TaskWithAssignees[]> {
 	await assertProjectExists(projectId);
 	return listTasksByProjectId(projectId);
 }
 
+/**
+ * task 本体・担当者関連・依存関係を 1 トランザクションで確定し、
+ * 中途半端な作成状態を残さないようにする。
+ */
 export async function createTaskUseCase(
 	projectId: string,
 	payload: CreateTaskInput
@@ -67,6 +85,10 @@ export async function createTaskUseCase(
 	});
 }
 
+/**
+ * 楽観ロックと業務制約検証をまとめて適用し、
+ * 同時更新と不正な依存関係の双方から task を保護する。
+ */
 export async function updateTaskUseCase(
 	projectId: string,
 	taskId: string,
@@ -189,12 +211,19 @@ export async function updateTaskUseCase(
 	});
 }
 
+/**
+ * task 削除を idempotent に扱い、呼び出し側が存在有無を真偽値で判定できるようにする。
+ */
 export async function deleteTaskUseCase(projectId: string, taskId: string): Promise<boolean> {
 	await assertProjectExists(projectId);
 	const deletedCount = await deleteTaskByIdInProject(projectId, taskId);
 	return deletedCount > 0;
 }
 
+/**
+ * 並び替え入力を全 task の完全順序として検証してから反映する。
+ * 欠落や重複を許すと sortOrder の整合性が壊れるため、全件一致を必須にする。
+ */
 export async function reorderTasksUseCase(
 	projectId: string,
 	ids: string[]
@@ -221,10 +250,16 @@ export async function reorderTasksUseCase(
 	return listTasksByProjectId(projectId);
 }
 
+/**
+ * ID 配列比較の順序依存を排除するため、重複除去とソートで正規化する。
+ */
 function normalizeIdList(values: string[]): string[] {
 	return [...new Set(values)].sort();
 }
 
+/**
+ * 担当者更新で不要な書き換えを避けるため、集合として同一かを判定する。
+ */
 function isSameIdList(left: string[], right: string[]): boolean {
 	const normalizedLeft = normalizeIdList(left);
 	const normalizedRight = normalizeIdList(right);
@@ -241,6 +276,9 @@ function isSameIdList(left: string[], right: string[]): boolean {
 	return true;
 }
 
+/**
+ * 不正 userId の混入を task 更新時点で遮断し、担当者関連の整合性を守る。
+ */
 async function assertUsersExist(userIds: string[], db: DbClient = prisma): Promise<void> {
 	if (userIds.length === 0) {
 		return;
@@ -252,6 +290,9 @@ async function assertUsersExist(userIds: string[], db: DbClient = prisma): Promi
 	}
 }
 
+/**
+ * project を前提とする task ユースケースで、誤った projectId を早期に検出する。
+ */
 async function assertProjectExists(projectId: string, db: DbClient = prisma): Promise<void> {
 	const project = await findProjectById(projectId, db);
 	if (!project) {
@@ -259,6 +300,9 @@ async function assertProjectExists(projectId: string, db: DbClient = prisma): Pr
 	}
 }
 
+/**
+ * 先行タスクの連鎖を辿って循環参照を検知し、スケジュール計算不能な状態を防ぐ。
+ */
 async function assertNoDependencyCycle(
 	params: {
 		projectId: string;
@@ -284,6 +328,10 @@ async function assertNoDependencyCycle(
 	}
 }
 
+/**
+ * 先行タスク制約を一箇所で検証し、
+ * 「自己参照」「存在しない参照」「循環参照」を更新前に排除する。
+ */
 async function assertPredecessorConstraints(
 	params: {
 		projectId: string;
