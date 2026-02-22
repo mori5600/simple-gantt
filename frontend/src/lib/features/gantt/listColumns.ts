@@ -33,12 +33,20 @@ export function computeAutoColumnWidths(
 	sourceTasks: readonly Task[],
 	users: readonly User[]
 ): ListColumnWidths {
-	const taskChars = Math.max(4, ...sourceTasks.map((task) => task.title.length));
-	const assigneeChars = Math.max(
-		6,
-		...sourceTasks.map((task) => getAssigneeSummary(task, users).length),
-		...sourceTasks.map((task) => getAssigneeNames(task, users).join(', ').length)
-	);
+	const assigneeNameById = new Map(users.map((user) => [user.id, user.name]));
+	let taskChars = 4;
+	let assigneeChars = 6;
+
+	for (const task of sourceTasks) {
+		taskChars = Math.max(taskChars, task.title.length);
+		if (task.assigneeIds.length === 0) {
+			assigneeChars = Math.max(assigneeChars, '未割り当て'.length);
+			continue;
+		}
+
+		const names = task.assigneeIds.map((id) => assigneeNameById.get(id) ?? id);
+		assigneeChars = Math.max(assigneeChars, names.join(', ').length);
+	}
 
 	const taskWidth = clamp(Math.round(taskChars * 8.2) + 40, 160, 420);
 	const assignWidth = clamp(Math.round(assigneeChars * 7.2) + 36, 130, 320);

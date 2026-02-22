@@ -57,8 +57,7 @@
 		return Math.max(min, Math.round(value));
 	}
 
-	function getAssigneeText(task: Task): string {
-		const names = getAssigneeNames(task);
+	function getAssigneeText(names: readonly string[]): string {
 		if (names.length === 0) {
 			return '未割り当て';
 		}
@@ -222,6 +221,8 @@
 		</div>
 	{:else}
 		{#each tasks as task (task.id)}
+			{@const isDependencyViolation = hasDependencyViolation(task)}
+			{@const assigneeNames = getAssigneeNames(task)}
 			<button
 				type="button"
 				class={`grid h-12 w-full min-w-0 border-b border-slate-200 text-left text-sm ${
@@ -245,7 +246,7 @@
 			>
 				<div class="flex min-w-0 items-center gap-2 border-r border-slate-200 px-3">
 					<span class="truncate font-semibold text-slate-900" title={task.title}>{task.title}</span>
-					{#if hasDependencyViolation(task)}
+					{#if isDependencyViolation}
 						<span
 							class="shrink-0 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700"
 						>
@@ -257,9 +258,9 @@
 					class={`truncate border-r border-slate-200 px-3 text-xs ${
 						task.assigneeIds.length === 0 ? 'text-slate-400' : 'text-slate-700'
 					}`}
-					title={getAssigneeNames(task).join(', ') || '未割り当て'}
+					title={assigneeNames.join(', ') || '未割り当て'}
 				>
-					{getAssigneeText(task)}
+					{getAssigneeText(assigneeNames)}
 				</span>
 				<span class="truncate border-r border-slate-200 px-3 font-mono text-slate-700">
 					{getDisplayStart(task)}

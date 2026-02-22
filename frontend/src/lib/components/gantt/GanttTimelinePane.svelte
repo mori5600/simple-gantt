@@ -39,6 +39,20 @@
 		arrowPoints: string;
 		isViolation: boolean;
 	};
+	type WeekendBand = {
+		key: string;
+		left: number;
+		width: number;
+	};
+	type TaskGeometry = {
+		startDate: string;
+		endDate: string;
+		left: number;
+		width: number;
+		right: number;
+		assigneeSummary: string;
+		dependencyViolation: boolean;
+	};
 
 	const TIMELINE_PADDING_DAYS = 3;
 	const TASK_ROW_HEIGHT = 48;
@@ -189,18 +203,63 @@
 		return task.endDate;
 	}
 
-	function getTaskLeft(task: Task): number {
-		return diffDays(timelineStart, getDisplayStart(task)) * dayWidth;
-	}
+	const rowsHeight = $derived(tasks.length * TASK_ROW_HEIGHT);
+	const weekendBands = $derived.by(() => {
+		const bands: WeekendBand[] = [];
+		let activeStartIndex = -1;
 
-	function getTaskWidth(task: Task): number {
-		const width = (diffDays(getDisplayStart(task), getDisplayEnd(task)) + 1) * dayWidth;
-		return Math.max(10, width);
-	}
+		for (let index = 0; index < timelineCells.length; index += 1) {
+			const isWeekendCell = timelineCells[index].weekend;
+			if (isWeekendCell) {
+				if (activeStartIndex < 0) {
+					activeStartIndex = index;
+				}
+				continue;
+			}
+			if (activeStartIndex < 0) {
+				continue;
+			}
+			bands.push({
+				key: `${timelineCells[activeStartIndex].date}-${timelineCells[index - 1].date}`,
+				left: activeStartIndex * dayWidth,
+				width: (index - activeStartIndex) * dayWidth
+			});
+			activeStartIndex = -1;
+		}
 
-	function getTaskRight(task: Task): number {
-		return getTaskLeft(task) + getTaskWidth(task);
-	}
+		if (activeStartIndex >= 0 && timelineCells.length > 0) {
+			bands.push({
+				key: `${timelineCells[activeStartIndex].date}-${timelineCells[timelineCells.length - 1].date}`,
+				left: activeStartIndex * dayWidth,
+				width: (timelineCells.length - activeStartIndex) * dayWidth
+			});
+		}
+
+		return bands;
+	});
+	const timelineGridStyle = $derived.by(() => {
+		const borderOffset = Math.max(dayWidth - 1, 0);
+		return `background-image: repeating-linear-gradient(to right, transparent 0, transparent ${borderOffset}px, rgb(226 232 240 / 0.95) ${borderOffset}px, rgb(226 232 240 / 0.95) ${dayWidth}px);`;
+	});
+	const taskGeometryById = $derived.by(() => {
+		const geometryById: Record<string, TaskGeometry> = {};
+		for (const task of tasks) {
+			const startDate = getDisplayStart(task);
+			const endDate = getDisplayEnd(task);
+			const left = diffDays(timelineStart, startDate) * dayWidth;
+			const width = Math.max(10, (diffDays(startDate, endDate) + 1) * dayWidth);
+			geometryById[task.id] = {
+				startDate,
+				endDate,
+				left,
+				width,
+				right: left + width,
+				assigneeSummary: getAssigneeSummary(task),
+				dependencyViolation: hasDependencyViolation(task)
+			};
+		}
+		return geometryById;
+	});
 
 	const dependencyLinks = $derived.by(() => {
 		const links: DependencyLink[] = [];
@@ -224,9 +283,14 @@
 			if (fromIndex === undefined) {
 				continue;
 			}
+			const predecessorGeometry = taskGeometryById[predecessor.id];
+			const taskGeometry = taskGeometryById[task.id];
+			if (!predecessorGeometry || !taskGeometry) {
+				continue;
+			}
 
-			const fromX = getTaskRight(predecessor);
-			const toX = getTaskLeft(task);
+			const fromX = predecessorGeometry.right;
+			const toX = taskGeometry.left;
 			const fromY = fromIndex * TASK_ROW_HEIGHT + TASK_BAR_CENTER_Y;
 			const toY = toIndex * TASK_ROW_HEIGHT + TASK_BAR_CENTER_Y;
 			const bendX = Math.max(fromX + LINK_BEND_OFFSET, toX - LINK_BEND_OFFSET);
@@ -235,16 +299,15 @@
 				id: `${predecessor.id}->${task.id}`,
 				path: `M ${fromX} ${fromY} L ${bendX} ${fromY} L ${bendX} ${toY} L ${toX} ${toY}`,
 				arrowPoints: `${toX},${toY} ${toX - 6},${toY - 4} ${toX - 6},${toY + 4}`,
-				isViolation: task.startDate < predecessor.endDate
+				isViolation: taskGeometry.startDate < predecessorGeometry.endDate
 			});
 		}
 
 		return links;
 	});
 
-	function getTaskBarClass(task: Task): string {
-		const violation = hasDependencyViolation(task);
-		if (task.id === selectedTaskId) {
+	function getTaskBarClass(taskId: string, violation: boolean): string {
+		if (taskId === selectedTaskId) {
 			return violation
 				? 'border-rose-500 bg-rose-100 text-rose-900 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]'
 				: 'border-amber-500 bg-sky-100 text-slate-900 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]';
@@ -393,61 +456,68 @@
 			</div>
 
 			<div class="relative">
-				{#each tasks as task (task.id)}
-					<div
-						class={`relative h-12 border-b border-slate-200 ${
-							task.id === selectedTaskId ? 'bg-sky-50/70' : 'bg-white'
-						}`}
-					>
-						<div class="pointer-events-none absolute inset-0 flex">
-							{#each timelineCells as cell (cell.date)}
-								<div
-									class={`h-full shrink-0 border-r border-slate-200 ${
-										cell.weekend ? 'bg-slate-100/70' : ''
-									}`}
-									style={`width: ${dayWidth}px;`}
-								></div>
-							{/each}
-						</div>
+				<div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+					{#each weekendBands as band (band.key)}
+						<div
+							class="absolute inset-y-0 bg-slate-100/70"
+							style={`left: ${band.left}px; width: ${band.width}px;`}
+						></div>
+					{/each}
+					<div class="absolute inset-0" style={timelineGridStyle}></div>
+				</div>
 
-						<button
-							type="button"
-							class={`absolute top-2 z-10 h-8 overflow-hidden rounded-md border text-left ${getTaskBarClass(task)}`}
-							data-no-pan="true"
-							style={`left: ${getTaskLeft(task)}px; width: ${getTaskWidth(task)}px;`}
-							title={`${task.title} / 担当: ${getAssigneeSummary(task)}${
-								hasDependencyViolation(task) ? ' / 依存違反あり' : ''
+				<div class="relative z-10">
+					{#each tasks as task (task.id)}
+						{@const taskGeometry = taskGeometryById[task.id]}
+						{@const taskLeft = taskGeometry?.left ?? 0}
+						{@const taskWidth = taskGeometry?.width ?? 10}
+						{@const assigneeSummary = taskGeometry?.assigneeSummary ?? getAssigneeSummary(task)}
+						{@const hasViolation =
+							taskGeometry?.dependencyViolation ?? hasDependencyViolation(task)}
+						<div
+							class={`relative h-12 border-b border-slate-200 ${
+								task.id === selectedTaskId ? 'bg-sky-50/70' : ''
 							}`}
-							onclick={() => onSelect(task.id)}
-							ondblclick={() => onEdit(task)}
-							onpointerdown={(event) => beginTaskDrag(event, task, 'move')}
 						>
-							<span
-								class="absolute inset-y-0 left-0 bg-sky-500/35"
-								style={`width: ${task.progress}%;`}
-							></span>
-							<span
-								class="absolute inset-y-0 left-0 w-2 cursor-col-resize border-r border-slate-400/30 bg-white/40"
-								role="presentation"
+							<button
+								type="button"
+								class={`absolute top-2 z-20 h-8 overflow-hidden rounded-md border text-left ${getTaskBarClass(task.id, hasViolation)}`}
 								data-no-pan="true"
-								onpointerdown={(event) => beginTaskDrag(event, task, 'resize-start')}
-							></span>
-							<span
-								class="absolute inset-y-0 right-0 w-2 cursor-col-resize border-l border-slate-400/30 bg-white/40"
-								role="presentation"
-								data-no-pan="true"
-								onpointerdown={(event) => beginTaskDrag(event, task, 'resize-end')}
-							></span>
-							<span class="relative block truncate px-3 text-xs font-semibold">{task.title}</span>
-						</button>
-					</div>
-				{/each}
+								style={`left: ${taskLeft}px; width: ${taskWidth}px;`}
+								title={`${task.title} / 担当: ${assigneeSummary}${
+									hasViolation ? ' / 依存違反あり' : ''
+								}`}
+								onclick={() => onSelect(task.id)}
+								ondblclick={() => onEdit(task)}
+								onpointerdown={(event) => beginTaskDrag(event, task, 'move')}
+							>
+								<span
+									class="absolute inset-y-0 left-0 bg-sky-500/35"
+									style={`width: ${task.progress}%;`}
+								></span>
+								<span
+									class="absolute inset-y-0 left-0 w-2 cursor-col-resize border-r border-slate-400/30 bg-white/40"
+									role="presentation"
+									data-no-pan="true"
+									onpointerdown={(event) => beginTaskDrag(event, task, 'resize-start')}
+								></span>
+								<span
+									class="absolute inset-y-0 right-0 w-2 cursor-col-resize border-l border-slate-400/30 bg-white/40"
+									role="presentation"
+									data-no-pan="true"
+									onpointerdown={(event) => beginTaskDrag(event, task, 'resize-end')}
+								></span>
+								<span class="relative block truncate px-3 text-xs font-semibold">{task.title}</span>
+							</button>
+						</div>
+					{/each}
+				</div>
 
 				{#if dependencyLinks.length > 0}
 					<svg
-						class="pointer-events-none absolute inset-0 z-[5]"
+						class="pointer-events-none absolute inset-0 z-[15]"
 						width={timelineWidth}
-						height={tasks.length * TASK_ROW_HEIGHT}
+						height={rowsHeight}
 						aria-hidden="true"
 					>
 						{#each dependencyLinks as link (link.id)}
@@ -469,7 +539,7 @@
 
 				{#if showTodayLine}
 					<div
-						class="pointer-events-none absolute inset-y-0 w-0.5 bg-orange-500"
+						class="pointer-events-none absolute inset-y-0 z-[18] w-0.5 bg-orange-500"
 						style={`left: ${todayOffset}px;`}
 					></div>
 				{/if}

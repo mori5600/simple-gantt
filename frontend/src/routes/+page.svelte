@@ -26,8 +26,6 @@
 	import { loadSelectedProjectId, saveSelectedProjectId } from '$lib/features/gantt/projectStorage';
 	import {
 		computeAutoColumnWidths,
-		getAssigneeNames as resolveAssigneeNames,
-		getAssigneeSummary as resolveAssigneeSummary,
 		LIST_COLUMN_DEFAULT_WIDTHS,
 		normalizeListColumnWidths
 	} from '$lib/features/gantt/listColumns';
@@ -128,6 +126,19 @@
 	const taskById = $derived.by(() => {
 		return indexTasksById(orderedTasks);
 	});
+	const assigneeNamesByTaskId = $derived.by(() => {
+		const assigneeNameById: Record<string, string> = {};
+		for (const user of users) {
+			assigneeNameById[user.id] = user.name;
+		}
+		const namesByTaskId: Record<string, string[]> = {};
+		for (const task of orderedTasks) {
+			namesByTaskId[task.id] = task.assigneeIds.map(
+				(assigneeId) => assigneeNameById[assigneeId] ?? assigneeId
+			);
+		}
+		return namesByTaskId;
+	});
 
 	const taskListPaneWidth = $derived(listColumnWidths.reduce((total, width) => total + width, 0));
 
@@ -161,7 +172,7 @@
 				if (!projectId) {
 					return;
 				}
-				await tasksStore.load(projectId);
+				await tasksStore.refresh(projectId);
 			},
 			onError: (error) => {
 				actionError = error instanceof Error ? error.message : '同期に失敗しました。';
@@ -477,11 +488,12 @@
 	}
 
 	function getAssigneeNames(task: Task): string[] {
-		return resolveAssigneeNames(task, users);
+		return assigneeNamesByTaskId[task.id] ?? [];
 	}
 
 	function getAssigneeSummary(task: Task): string {
-		return resolveAssigneeSummary(task, users);
+		const names = getAssigneeNames(task);
+		return names.length > 0 ? names.join(', ') : '未割り当て';
 	}
 
 	function hasDependencyViolation(task: Task): boolean {
