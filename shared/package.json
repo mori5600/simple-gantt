@@ -1,0 +1,21 @@
+{
+	"name": "@simple-gantt/shared",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"lint": "pnpm --dir .. exec prettier --check shared --ignore-path .prettierignore",
+		"format": "pnpm --dir .. exec prettier --write shared --ignore-path .prettierignore"
+	},
+	"exports": {
+		".": "./src/index.ts",
+		"./tasks": "./src/tasks.ts"
+	},
+	"types": "./src/index.ts",
+	"dependencies": {
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3"
+	}
+}

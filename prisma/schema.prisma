@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id                String         @id
+  projectId         String         @default("project-default")
+  predecessorTaskId String?
+  title             String
+  note              String         @default("")
+  startDate         String
+  endDate           String
+  progress          Int
+  sortOrder         Int
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  project           Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignees         TaskAssignee[]
+  predecessor       Task?          @relation("TaskDependency", fields: [predecessorTaskId], references: [id], onDelete: SetNull)
+  dependents        Task[]         @relation("TaskDependency")
+
+  @@index([projectId, sortOrder])
+  @@index([projectId, predecessorTaskId])
+}
+
+model Project {
+  id        String   @id
+  name      String
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  tasks     Task[]
+}
+
+model User {
+  id        String         @id
+  name      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @default(now()) @updatedAt
+  assignees TaskAssignee[]
+}
+
+model TaskAssignee {
+  taskId String
+  userId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([taskId, userId])
+  @@index([userId])
+}

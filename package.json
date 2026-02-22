@@ -1,0 +1,49 @@
+{
+	"name": "@simple-gantt/workspace",
+	"private": true,
+	"version": "0.0.1",
+	"dependencies": {
+		"@prisma/client": "^6.16.3"
+	},
+	"devDependencies": {
+		"concurrently": "^9.2.1",
+		"prettier": "^3.8.1",
+		"prettier-plugin-svelte": "^3.4.1",
+		"prettier-plugin-tailwindcss": "^0.7.2",
+		"prisma": "^6.16.3"
+	},
+	"scripts": {
+		"frontend:dev": "pnpm --filter @simple-gantt/frontend dev",
+		"frontend:build": "pnpm --filter @simple-gantt/frontend build",
+		"frontend:build:strict": "pnpm --filter @simple-gantt/frontend build:strict",
+		"frontend:start": "pnpm --filter @simple-gantt/frontend start",
+		"frontend:preview": "pnpm --filter @simple-gantt/frontend preview",
+		"frontend:preview:lan": "pnpm --filter @simple-gantt/frontend preview:lan",
+		"frontend:lint": "pnpm --filter @simple-gantt/frontend lint",
+		"frontend:format": "pnpm --filter @simple-gantt/frontend format",
+		"frontend:test": "pnpm --filter @simple-gantt/frontend test",
+		"dev": "concurrently -k --names \"frontend,backend\" --prefix-colors \"cyan,magenta\" \"pnpm frontend:dev\" \"pnpm backend:dev\"",
+		"build": "pnpm frontend:build",
+		"build:strict": "pnpm frontend:build:strict",
+		"start": "pnpm frontend:start",
+		"preview": "pnpm frontend:preview",
+		"preview:lan": "pnpm frontend:preview:lan",
+		"check": "pnpm --filter @simple-gantt/frontend check",
+		"check:watch": "pnpm --filter @simple-gantt/frontend check:watch",
+		"backend:dev": "pnpm --filter @simple-gantt/backend dev",
+		"backend:lint": "pnpm --filter @simple-gantt/backend lint",
+		"backend:format": "pnpm --filter @simple-gantt/backend format",
+		"backend:test": "pnpm --filter @simple-gantt/backend test",
+		"shared:lint": "pnpm --filter @simple-gantt/shared lint",
+		"shared:format": "pnpm --filter @simple-gantt/shared format",
+		"lint": "pnpm frontend:lint && pnpm backend:lint && pnpm shared:lint",
+		"format": "pnpm prettier:write",
+		"format:check": "pnpm prettier:check",
+		"prettier:check": "pnpm exec prettier --check . --ignore-path .prettierignore",
+		"prettier:write": "pnpm exec prettier --write . --ignore-path .prettierignore",
+		"test": "pnpm frontend:test && pnpm backend:test",
+		"prisma:generate": "pnpm --filter @simple-gantt/backend prisma:generate",
+		"prisma:push": "pnpm --filter @simple-gantt/backend prisma:push",
+		"prisma:seed": "pnpm --filter @simple-gantt/backend prisma:seed"
+	}
+}

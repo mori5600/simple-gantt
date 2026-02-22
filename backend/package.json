@@ -1,0 +1,37 @@
+{
+	"name": "@simple-gantt/backend",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "tsx watch --env-file=.env src/index.ts",
+		"dev:with-generate": "pnpm prisma:generate && pnpm dev",
+		"start": "pnpm prisma:generate && tsx --env-file=.env src/index.ts",
+		"lint": "pnpm --dir .. exec prettier --check backend --ignore-path .prettierignore",
+		"format": "pnpm --dir .. exec prettier --write backend --ignore-path .prettierignore",
+		"test": "vitest run",
+		"prisma:generate": "prisma generate --schema ../prisma/schema.prisma",
+		"prisma:push": "cross-env PRISMA_SCHEMA_ENGINE_LOG_LEVEL=trace node --env-file=.env ./node_modules/prisma/build/index.js db push --skip-generate --schema ../prisma/schema.prisma",
+		"prisma:seed": "pnpm prisma:generate && node --env-file=.env ./node_modules/prisma/build/index.js db seed --schema ../prisma/schema.prisma"
+	},
+	"prisma": {
+		"seed": "tsx ../prisma/seed.ts"
+	},
+	"dependencies": {
+		"@hono/node-server": "^1.19.9",
+		"@prisma/client": "^6.16.3",
+		"@simple-gantt/shared": "workspace:*",
+		"hono": "^4.11.10",
+		"pino": "^10.3.1",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@types/node": "^24",
+		"@vitest/coverage-v8": "^4.0.18",
+		"cross-env": "^10.1.0",
+		"prisma": "^6.16.3",
+		"tsx": "^4.21.0",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.18"
+	}
+}

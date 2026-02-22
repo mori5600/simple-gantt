@@ -1,0 +1,36 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+/frontend/.svelte-kit
+/frontend/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!frontend/.env.example
+!backend/.env.example
+!.env.test
+
+# Prisma SQLite
+prisma/dev.db
+prisma/dev.db-journal
+
+# Backend logs
+backend/logs/*.log
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+.pnpm-store/
