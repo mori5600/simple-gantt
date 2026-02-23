@@ -56,6 +56,7 @@ docker compose down
 
 - SQLite: `sqlite_data` volume (`/data/simple-gantt.db`)
 - backendログ: `backend_logs` volume (`/app/backend/logs`)
+- backend 起動時に SQLite は `journal_mode=WAL` が有効化されます。
 
 公開ポート変更:
 
@@ -137,12 +138,14 @@ pnpm format
 
 ```env
 DATABASE_URL="file:./simple-gantt.db"
+SQLITE_BUSY_TIMEOUT_MS=5000
 API_PORT=8787
 CORS_ORIGIN="http://localhost:5173,http://localhost:<FRONTEND_PORT>,http://<SERVER_IP>:<FRONTEND_PORT>"
 LOG_LEVEL=info
 ```
 
 - `SERVER_IP` はサーバPCの固定IPに置き換えます (例: `192.168.1.10`)。
+- `SQLITE_BUSY_TIMEOUT_MS` は DB ロック待ち時間 (ms) です。通常は `5000` を推奨します。
 - `4173` は例です。frontend を別ポートで動かす場合は、`CORS_ORIGIN` も同じポートに合わせてください。
 - `HOST=0.0.0.0` で frontend を起動する場合、アクセスURLが `http://127.0.0.1:<FRONTEND_PORT>` になることがあるため、必要に応じて `http://127.0.0.1:<FRONTEND_PORT>` も `CORS_ORIGIN` に追加してください。
 - `CORS_ORIGIN` はカンマ区切りで複数指定できます。
