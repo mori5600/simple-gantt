@@ -6,7 +6,7 @@ x-app-build: &app-build
   target: runtime
   args:
     VITE_TASKS_DATA_SOURCE: api
-    VITE_API_BASE_URL: /api
+    VITE_API_BASE_URL: /
 
 services:
   backend:

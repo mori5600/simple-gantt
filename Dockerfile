@@ -27,7 +27,7 @@ COPY shared shared
 
 # Build frontend in API mode with same-origin /api requests.
 ARG VITE_TASKS_DATA_SOURCE=api
-ARG VITE_API_BASE_URL=/api
+ARG VITE_API_BASE_URL=/
 ENV VITE_TASKS_DATA_SOURCE=$VITE_TASKS_DATA_SOURCE
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
@@ -44,7 +44,20 @@ RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
 WORKDIR /app
 
-COPY --from=build /app /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY backend/package.json backend/package.json
+COPY backend/tsconfig.json backend/tsconfig.json
+COPY frontend/package.json frontend/package.json
+COPY shared/package.json shared/package.json
+COPY prisma/schema.prisma prisma/schema.prisma
+
+RUN pnpm install --prod --frozen-lockfile
+
+COPY --from=build /app/backend/src backend/src
+COPY --from=build /app/shared/src shared/src
+COPY --from=build /app/frontend/build frontend/build
+
+RUN pnpm --filter @simple-gantt/backend exec prisma generate --schema ../prisma/schema.prisma
 
 RUN mkdir -p /data /app/backend/logs
 

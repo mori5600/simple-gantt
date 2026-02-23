@@ -593,7 +593,7 @@
 
 		<main class="min-h-0 flex-1 overflow-auto">
 			<div
-				class="grid min-h-full min-w-0 grid-cols-1 lg:[grid-template-columns:var(--task-pane-width)_minmax(0,1fr)]"
+				class="grid min-h-full min-w-0 grid-cols-1 lg:grid-cols-[var(--task-pane-width)_minmax(0,1fr)]"
 				style={`--task-pane-width: ${taskListPaneWidth}px;`}
 			>
 				<TaskListPane
