@@ -56,8 +56,8 @@
 	};
 
 	const TIMELINE_PADDING_DAYS = 3;
-	const TASK_ROW_HEIGHT = 48;
-	const TASK_BAR_CENTER_Y = 24;
+	const TASK_ROW_HEIGHT = 56;
+	const TASK_BAR_CENTER_Y = 28;
 	const LINK_BEND_OFFSET = 14;
 	const MONTH_LABEL_MIN_WIDTH = 64;
 
@@ -431,12 +431,12 @@
 			<div class="sticky top-0 z-20 border-b border-slate-300 bg-slate-100">
 				{#if zoom === 'month'}
 					<div
-						class="flex h-5 border-b border-slate-300/90 bg-slate-200/70"
+						class="flex h-5 border-b border-slate-300/90 bg-slate-200/90"
 						data-testid="month-header-band"
 					>
 						{#each monthSegments as segment (segment.key)}
 							<div
-								class="flex shrink-0 items-center justify-center overflow-hidden border-r border-slate-300 px-1 text-[11px] font-semibold text-slate-700"
+								class="flex shrink-0 items-center justify-center overflow-hidden border-r border-slate-300 px-1 text-[11px] font-semibold text-slate-800"
 								style={`width: ${segment.width}px;`}
 								title={segment.label}
 							>
@@ -451,7 +451,7 @@
 					{#each timelineCells as cell (cell.date)}
 						<div
 							class={`flex shrink-0 items-end justify-center border-r border-slate-300 pb-1 text-[11px] font-medium ${
-								cell.weekend ? 'bg-slate-200 text-slate-700' : 'text-slate-700'
+								cell.weekend ? 'bg-slate-200 text-slate-800' : 'text-slate-800'
 							}`}
 							style={`width: ${dayWidth}px;`}
 							title={cell.date}
@@ -482,13 +482,13 @@
 						{@const hasViolation =
 							taskGeometry?.dependencyViolation ?? hasDependencyViolation(task)}
 						<div
-							class={`relative h-12 border-b border-slate-200 ${
+							class={`relative h-14 border-b border-slate-200 ${
 								task.id === selectedTaskId ? 'bg-sky-50/70' : ''
 							}`}
 						>
 							<button
 								type="button"
-								class={`absolute top-2 z-20 h-8 overflow-hidden rounded-md border text-left ${getTaskBarClass(task.id, hasViolation)}`}
+								class={`absolute top-3 z-20 h-8 overflow-hidden rounded-md border text-left ${getTaskBarClass(task.id, hasViolation)}`}
 								data-no-pan="true"
 								style={`left: ${taskLeft}px; width: ${taskWidth}px;`}
 								title={`${task.title} / 担当: ${assigneeSummary}${

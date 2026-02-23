@@ -148,14 +148,14 @@
 <section class="min-w-0 border-t border-r border-slate-300 bg-white lg:border-t-0">
 	<div class="sticky top-0 z-20 border-b border-slate-300 bg-slate-100">
 		<div
-			class="relative grid h-10 min-w-0 text-[11px] font-semibold tracking-wide text-slate-700"
+			class="relative grid h-10 min-w-0 text-[11px] font-semibold tracking-wide text-slate-800"
 			style={`grid-template-columns: ${gridTemplate};`}
 		>
 			<div class="relative flex min-w-0 items-center border-r border-slate-300 px-3 uppercase">
 				<span class="truncate">Task</span>
 				<button
 					type="button"
-					class="absolute top-0 right-0 h-full w-2 cursor-col-resize bg-transparent"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
 					aria-label="Resize task column"
 					onpointerdown={(event) => startResize(event, 0)}
 				></button>
@@ -164,7 +164,7 @@
 				<span class="truncate">Assignee</span>
 				<button
 					type="button"
-					class="absolute top-0 right-0 h-full w-2 cursor-col-resize bg-transparent"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
 					aria-label="Resize assign column"
 					onpointerdown={(event) => startResize(event, 1)}
 				></button>
@@ -173,7 +173,7 @@
 				<span class="truncate">Start</span>
 				<button
 					type="button"
-					class="absolute top-0 right-0 h-full w-2 cursor-col-resize bg-transparent"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
 					aria-label="Resize start column"
 					onpointerdown={(event) => startResize(event, 2)}
 				></button>
@@ -182,7 +182,7 @@
 				<span class="truncate">End</span>
 				<button
 					type="button"
-					class="absolute top-0 right-0 h-full w-2 cursor-col-resize bg-transparent"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
 					aria-label="Resize end column"
 					onpointerdown={(event) => startResize(event, 3)}
 				></button>
@@ -191,7 +191,7 @@
 				<span class="truncate">Progress</span>
 				<button
 					type="button"
-					class="absolute top-0 right-0 h-full w-2 cursor-col-resize bg-transparent"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
 					aria-label="Resize progress column"
 					onpointerdown={(event) => startResize(event, 4)}
 				></button>
@@ -225,7 +225,7 @@
 			{@const assigneeNames = getAssigneeNames(task)}
 			<button
 				type="button"
-				class={`grid h-12 w-full min-w-0 border-b border-slate-200 text-left text-sm text-slate-800 ${
+				class={`grid h-14 w-full min-w-0 border-b border-slate-200 text-left text-sm text-slate-900 ${
 					task.id === selectedTaskId ? 'bg-sky-50/70' : 'bg-white hover:bg-slate-50'
 				} ${dragTaskId === task.id ? 'cursor-grabbing' : 'cursor-grab'} ${
 					dragOverTaskId === task.id ? 'bg-sky-100/70 ring-1 ring-sky-300' : ''
@@ -256,19 +256,19 @@
 				</div>
 				<span
 					class={`truncate border-r border-slate-200 px-3 text-xs ${
-						task.assigneeIds.length === 0 ? 'text-slate-600' : 'text-slate-700'
+						task.assigneeIds.length === 0 ? 'text-slate-700' : 'text-slate-800'
 					}`}
 					title={assigneeNames.join(', ') || '未割り当て'}
 				>
 					{getAssigneeText(assigneeNames)}
 				</span>
-				<span class="truncate border-r border-slate-200 px-3 font-mono text-slate-700">
+				<span class="truncate border-r border-slate-200 px-3 font-mono text-slate-800">
 					{getDisplayStart(task)}
 				</span>
-				<span class="truncate border-r border-slate-200 px-3 font-mono text-slate-700">
+				<span class="truncate border-r border-slate-200 px-3 font-mono text-slate-800">
 					{getDisplayEnd(task)}
 				</span>
-				<span class="truncate px-3 text-slate-700">{task.progress}%</span>
+				<span class="truncate px-3 text-slate-800">{task.progress}%</span>
 			</button>
 		{/each}
 	{/if}
