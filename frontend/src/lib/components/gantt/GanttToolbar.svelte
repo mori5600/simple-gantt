@@ -11,12 +11,15 @@
 		projects,
 		selectedProjectId,
 		hasSelectedTask,
+		importDisabled,
+		isImporting,
 		exportDisabled,
 		isExporting,
 		onProjectChange,
 		onCreate,
 		onEdit,
 		onDelete,
+		onImport,
 		onExport,
 		onZoomChange
 	} = $props<{
@@ -24,18 +27,22 @@
 		projects: readonly Project[];
 		selectedProjectId: string;
 		hasSelectedTask: boolean;
+		importDisabled: boolean;
+		isImporting: boolean;
 		exportDisabled: boolean;
 		isExporting: boolean;
 		onProjectChange: (projectId: string) => void;
 		onCreate: () => void;
 		onEdit: () => void;
 		onDelete: () => void;
+		onImport: (file: File) => void;
 		onExport: (format: ExportFormat) => void;
 		onZoomChange: (zoom: ZoomLevel) => void;
 	}>();
 
 	let isExportMenuOpen = $state(false);
 	let exportMenuContainer: HTMLDivElement | null = null;
+	let importFileInput: HTMLInputElement | null = null;
 
 	function toggleExportMenu(): void {
 		if (exportDisabled) {
@@ -51,6 +58,26 @@
 	function selectExport(format: ExportFormat): void {
 		closeExportMenu();
 		onExport(format);
+	}
+
+	function openImportFileDialog(): void {
+		if (importDisabled || isImporting) {
+			return;
+		}
+		importFileInput?.click();
+	}
+
+	function handleImportFileChange(event: Event): void {
+		const input = event.currentTarget;
+		if (!(input instanceof HTMLInputElement)) {
+			return;
+		}
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file) {
+			return;
+		}
+		onImport(file);
 	}
 
 	onMount(() => {
@@ -142,6 +169,21 @@
 					>
 						Delete
 					</button>
+					<button
+						type="button"
+						class="h-10 rounded-xl border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-45"
+						onclick={openImportFileDialog}
+						disabled={importDisabled || isImporting}
+					>
+						{isImporting ? '取込中...' : '取込'}
+					</button>
+					<input
+						type="file"
+						accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+						class="sr-only"
+						bind:this={importFileInput}
+						onchange={handleImportFileChange}
+					/>
 					<div class="relative" bind:this={exportMenuContainer}>
 						<button
 							type="button"

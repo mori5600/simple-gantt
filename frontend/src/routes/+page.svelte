@@ -10,14 +10,23 @@
 	import { exportTasksAsCsv, exportTasksAsXlsx } from '$lib/features/gantt/export';
 	import {
 		changeProjectSelectionAction,
+		createMissingUsersAction,
 		commitTaskDateRangeAction,
 		deleteTaskAction,
+		importTasksAction,
 		loadInitialProjectAction,
 		type ModalMode,
 		reorderTasksAction,
 		shouldEnableGanttSync,
-		submitTaskAction
+		submitTaskAction,
+		type TaskImportDraft
 	} from '$lib/features/gantt/actions';
+	import {
+		planTaskImportDrafts,
+		parseTaskImportFile,
+		TaskImportContractError,
+		type TaskImportRow
+	} from '$lib/features/gantt/import';
 	import {
 		loadTaskFilters,
 		saveTaskFilters,
@@ -46,7 +55,7 @@
 	import { resolvePollIntervalMs, startVisibilityPolling } from '$lib/polling';
 	import type { ListColumnWidths, TaskDateRange, ZoomLevel } from '$lib/features/gantt/types';
 	import { tasksStore } from '$lib/tasksStore';
-	import type { Project, Task, User } from '$lib/tasksRepo';
+	import { tasksRepo, type Project, type Task, type User } from '$lib/tasksRepo';
 
 	const FILTERS_STORAGE_KEY = 'simple-gantt:task-filters:v1';
 	const PROJECT_STORAGE_KEY = 'simple-gantt:selected-project:v1';
@@ -81,6 +90,7 @@
 	let selectedTaskId = $state<string | null>(null);
 	let zoom = $state<ZoomLevel>('day');
 	let actionError = $state('');
+	let actionSuccess = $state('');
 
 	let isModalOpen = $state(false);
 	let modalMode = $state<ModalMode>('create');
@@ -88,6 +98,7 @@
 	let editingTaskId = $state<string | null>(null);
 	let formError = $state('');
 	let isSubmitting = $state(false);
+	let isImporting = $state(false);
 	let isExporting = $state(false);
 	let listColumnWidths = $state<ListColumnWidths>([...LIST_COLUMN_DEFAULT_WIDTHS]);
 	let isListColumnAuto = $state(true);
@@ -98,6 +109,9 @@
 	let isInitialLoadCompleted = $state(false);
 
 	let taskDatePreviews = $state<Record<string, TaskDateRange>>({});
+	let pendingImportRows = $state<TaskImportRow[] | null>(null);
+	let pendingImportFileName = $state('');
+	let pendingMissingAssigneeNames = $state<string[]>([]);
 
 	const orderedTasks = $derived.by(() => {
 		return orderTasksForDisplay(tasks);
@@ -245,12 +259,19 @@
 		zoom = nextZoom;
 	}
 
+	function clearPendingImport(): void {
+		pendingImportRows = null;
+		pendingImportFileName = '';
+		pendingMissingAssigneeNames = [];
+	}
+
 	async function changeProject(projectId: string): Promise<void> {
 		const currentProjectId = selectedProjectId;
 		if (!projectId || projectId === currentProjectId) {
 			return;
 		}
 		actionError = '';
+		actionSuccess = '';
 
 		const result = await changeProjectSelectionAction({
 			store: tasksStore,
@@ -266,6 +287,7 @@
 			return;
 		}
 
+		clearPendingImport();
 		selectedProjectId = result.projectId;
 		selectedTaskId = null;
 		taskDatePreviews = {};
@@ -273,6 +295,7 @@
 
 	async function runTaskAction(action: () => Promise<string | null>): Promise<boolean> {
 		actionError = '';
+		actionSuccess = '';
 		const error = await action();
 		if (!error) {
 			return true;
@@ -285,10 +308,12 @@
 		const projectId = selectedProjectId;
 		if (!projectId) {
 			actionError = 'プロジェクトを選択してください。';
+			actionSuccess = '';
 			return;
 		}
 		if (orderedTasks.length === 0) {
 			actionError = '出力対象のタスクがありません。';
+			actionSuccess = '';
 			return;
 		}
 		if (typeof window === 'undefined') {
@@ -296,6 +321,7 @@
 		}
 
 		actionError = '';
+		actionSuccess = '';
 		isExporting = true;
 		const projectName = selectedProject?.name ?? projectId;
 		try {
@@ -319,6 +345,131 @@
 			actionError = error instanceof Error ? error.message : 'ファイル出力に失敗しました。';
 		} finally {
 			isExporting = false;
+		}
+	}
+
+	async function executeTaskImport(params: {
+		projectId: string;
+		drafts: readonly TaskImportDraft[];
+		createdUsersCount?: number;
+	}): Promise<void> {
+		const result = await importTasksAction({
+			store: tasksStore,
+			projectId: params.projectId,
+			drafts: params.drafts
+		});
+		if (result.kind === 'error') {
+			actionError = result.message;
+			return;
+		}
+		const createdUsersCount = params.createdUsersCount ?? 0;
+		if (createdUsersCount > 0) {
+			actionSuccess = `${result.importedCount} 件のタスクを取り込みました。${createdUsersCount} 名のユーザーを作成しました。`;
+		} else {
+			actionSuccess = `${result.importedCount} 件のタスクを取り込みました。`;
+		}
+		selectedTaskId = null;
+		clearPendingImport();
+	}
+
+	async function importTasks(file: File): Promise<void> {
+		const projectId = selectedProjectId;
+		if (!projectId) {
+			actionError = 'プロジェクトを選択してください。';
+			actionSuccess = '';
+			return;
+		}
+
+		actionError = '';
+		actionSuccess = '';
+		isImporting = true;
+
+		try {
+			const rows = await parseTaskImportFile(file);
+			const plan = planTaskImportDrafts({
+				rows,
+				users,
+				existingTaskIds: new Set(orderedTasks.map((task) => task.id)),
+				allowMissingAssignees: true
+			});
+			if (plan.kind === 'missing_assignees') {
+				pendingImportRows = rows;
+				pendingImportFileName = file.name;
+				pendingMissingAssigneeNames = plan.missingAssigneeNames;
+				actionSuccess = '';
+				return;
+			}
+			await executeTaskImport({
+				projectId,
+				drafts: plan.drafts
+			});
+		} catch (error) {
+			if (error instanceof TaskImportContractError) {
+				actionError = error.message;
+				return;
+			}
+			actionError = error instanceof Error ? error.message : 'ファイル取込に失敗しました。';
+		} finally {
+			isImporting = false;
+		}
+	}
+
+	function cancelPendingImport(): void {
+		clearPendingImport();
+		actionError = '';
+		actionSuccess = '取り込みをキャンセルしました。';
+	}
+
+	async function createMissingUsersAndContinue(): Promise<void> {
+		const rows = pendingImportRows;
+		const missingNames = pendingMissingAssigneeNames;
+		const projectId = selectedProjectId;
+		if (!rows || missingNames.length === 0) {
+			return;
+		}
+		if (!projectId) {
+			actionError = 'プロジェクトを選択してください。';
+			actionSuccess = '';
+			return;
+		}
+
+		actionError = '';
+		actionSuccess = '';
+		isImporting = true;
+
+		try {
+			const createResult = await createMissingUsersAction({
+				missingNames,
+				createUser: (input) => tasksRepo.createUser(input)
+			});
+			if (createResult.kind === 'error') {
+				actionError = createResult.message;
+				return;
+			}
+
+			const plan = planTaskImportDrafts({
+				rows,
+				users: [...users, ...createResult.createdUsers],
+				existingTaskIds: new Set(orderedTasks.map((task) => task.id)),
+				allowMissingAssignees: false
+			});
+			if (plan.kind !== 'ready') {
+				throw new TaskImportContractError('担当者解決後の取込計画に失敗しました。');
+			}
+
+			await executeTaskImport({
+				projectId,
+				drafts: plan.drafts,
+				createdUsersCount: createResult.createdCount
+			});
+		} catch (error) {
+			if (error instanceof TaskImportContractError) {
+				actionError = error.message;
+				return;
+			}
+			actionError = error instanceof Error ? error.message : 'ユーザー作成に失敗しました。';
+		} finally {
+			isImporting = false;
 		}
 	}
 
@@ -441,6 +592,7 @@
 		isSubmitting = true;
 		formError = '';
 		actionError = '';
+		actionSuccess = '';
 
 		try {
 			const result = await submitTaskAction({
@@ -563,6 +715,9 @@
 			onCreate={openCreateModal}
 			onEdit={() => openTaskEditPage()}
 			onDelete={deleteSelectedTask}
+			onImport={(file) => void importTasks(file)}
+			importDisabled={selectedProjectId.length === 0 || pendingMissingAssigneeNames.length > 0}
+			{isImporting}
 			onExport={(format) => void exportTasks(format)}
 			exportDisabled={!canExportTasks}
 			{isExporting}
@@ -588,6 +743,40 @@
 		{#if actionError}
 			<div class="border-y border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
 				{actionError}
+			</div>
+		{/if}
+		{#if actionSuccess}
+			<div class="border-y border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+				{actionSuccess}
+			</div>
+		{/if}
+		{#if pendingMissingAssigneeNames.length > 0}
+			<div class="border-y border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+				<p class="font-semibold">
+					未登録担当者が見つかりました ({pendingMissingAssigneeNames.length} 名)
+				</p>
+				<p class="mt-1">
+					{pendingImportFileName || '取込ファイル'} に未登録担当者が含まれています。ユーザーを作成して続行しますか？
+				</p>
+				<p class="mt-1 break-words">{pendingMissingAssigneeNames.join(', ')}</p>
+				<div class="mt-3 flex flex-wrap gap-2">
+					<button
+						type="button"
+						class="rounded-lg bg-amber-700 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-45"
+						onclick={() => void createMissingUsersAndContinue()}
+						disabled={isImporting}
+					>
+						不足ユーザーを作成して続行
+					</button>
+					<button
+						type="button"
+						class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-45"
+						onclick={cancelPendingImport}
+						disabled={isImporting}
+					>
+						キャンセル
+					</button>
+				</div>
 			</div>
 		{/if}
 

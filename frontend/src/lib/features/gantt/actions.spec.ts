@@ -2,13 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Project, Task } from '$lib/tasksRepo';
 import {
 	changeProjectSelectionAction,
+	createMissingUsersAction,
 	commitTaskDateRangeAction,
 	deleteTaskAction,
+	importTasksAction,
 	loadInitialProjectAction,
 	reorderTasksAction,
 	shouldEnableGanttSync,
 	submitTaskAction,
-	type GanttTasksStore
+	type GanttTasksStore,
+	type TaskImportDraft
 } from './actions';
 
 function projectFixture(partial: Partial<Project> = {}): Project {
@@ -118,6 +121,154 @@ describe('gantt actions', () => {
 			assigneeIds: [],
 			predecessorTaskId: null,
 			updatedAt: '2026-02-20T00:00:00.000Z'
+		});
+	});
+
+	it('importTasksAction should create tasks first and then resolve predecessor ids', async () => {
+		const drafts: TaskImportDraft[] = [
+			{
+				sourceTaskId: 'source-task-1',
+				predecessorSourceTaskId: null,
+				createInput: {
+					title: '要件確認',
+					note: '',
+					startDate: '2026-02-20',
+					endDate: '2026-02-21',
+					progress: 40,
+					assigneeIds: [],
+					predecessorTaskId: null
+				}
+			},
+			{
+				sourceTaskId: 'source-task-2',
+				predecessorSourceTaskId: 'source-task-1',
+				createInput: {
+					title: '実装',
+					note: '',
+					startDate: '2026-02-22',
+					endDate: '2026-02-23',
+					progress: 20,
+					assigneeIds: [],
+					predecessorTaskId: null
+				}
+			}
+		];
+
+		store.create
+			.mockResolvedValueOnce(
+				taskFixture({
+					id: 'created-1',
+					updatedAt: '2026-02-20T01:00:00.000Z'
+				})
+			)
+			.mockResolvedValueOnce(
+				taskFixture({
+					id: 'created-2',
+					updatedAt: '2026-02-20T02:00:00.000Z'
+				})
+			);
+		store.update.mockResolvedValueOnce(
+			taskFixture({
+				id: 'created-2',
+				updatedAt: '2026-02-20T03:00:00.000Z',
+				predecessorTaskId: 'created-1'
+			})
+		);
+
+		const result = await importTasksAction({
+			store,
+			projectId: 'project-1',
+			drafts
+		});
+
+		expect(result).toEqual({
+			kind: 'ok',
+			importedCount: 2
+		});
+		expect(store.create).toHaveBeenNthCalledWith(1, 'project-1', drafts[0]?.createInput);
+		expect(store.create).toHaveBeenNthCalledWith(2, 'project-1', drafts[1]?.createInput);
+		expect(store.update).toHaveBeenCalledTimes(1);
+		expect(store.update).toHaveBeenCalledWith('project-1', 'created-2', {
+			updatedAt: '2026-02-20T02:00:00.000Z',
+			predecessorTaskId: 'created-1'
+		});
+	});
+
+	it('importTasksAction should return contract errors for empty input and missing project', async () => {
+		await expect(
+			importTasksAction({
+				store,
+				projectId: '',
+				drafts: []
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			message: 'プロジェクトを選択してください。'
+		});
+
+		await expect(
+			importTasksAction({
+				store,
+				projectId: 'project-1',
+				drafts: []
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			message: '取込対象のタスクがありません。'
+		});
+	});
+
+	it('createMissingUsersAction should create missing users in deterministic order', async () => {
+		const createUser = vi
+			.fn()
+			.mockResolvedValueOnce({
+				id: 'user-10',
+				name: '新規A',
+				updatedAt: '2026-02-23T00:00:00.000Z'
+			})
+			.mockResolvedValueOnce({
+				id: 'user-11',
+				name: '新規B',
+				updatedAt: '2026-02-23T00:00:00.000Z'
+			});
+
+		const result = await createMissingUsersAction({
+			missingNames: ['新規A', '新規B', '新規A'],
+			createUser
+		});
+
+		expect(result).toEqual({
+			kind: 'ok',
+			createdUsers: [
+				{
+					id: 'user-10',
+					name: '新規A',
+					updatedAt: '2026-02-23T00:00:00.000Z'
+				},
+				{
+					id: 'user-11',
+					name: '新規B',
+					updatedAt: '2026-02-23T00:00:00.000Z'
+				}
+			],
+			createdCount: 2
+		});
+		expect(createUser).toHaveBeenCalledTimes(2);
+		expect(createUser).toHaveBeenNthCalledWith(1, { name: '新規A' });
+		expect(createUser).toHaveBeenNthCalledWith(2, { name: '新規B' });
+	});
+
+	it('createMissingUsersAction should map errors into user-facing message', async () => {
+		const createUser = vi.fn().mockRejectedValueOnce(new Error('user create failed'));
+
+		const result = await createMissingUsersAction({
+			missingNames: ['新規A'],
+			createUser
+		});
+
+		expect(result).toEqual({
+			kind: 'error',
+			message: 'user create failed'
 		});
 	});
 

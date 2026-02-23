@@ -7,7 +7,7 @@
 		"dev": "vite dev",
 		"build": "svelte-kit sync && vite build",
 		"build:strict": "pnpm run lint && pnpm run check && pnpm run build",
-		"start": "node build",
+		"start": "vite preview --host 0.0.0.0 --port 4173 --strictPort",
 		"preview": "vite preview --strictPort",
 		"preview:lan": "vite preview --host 0.0.0.0 --port 4173 --strictPort",
 		"prepare": "svelte-kit sync || echo ''",
@@ -21,7 +21,7 @@
 	"devDependencies": {
 		"@eslint/compat": "^2.0.2",
 		"@eslint/js": "^9.39.2",
-		"@sveltejs/adapter-node": "^5.3.4",
+		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.50.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@tailwindcss/vite": "^4.1.18",

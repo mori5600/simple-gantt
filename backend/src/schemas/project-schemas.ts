@@ -2,4 +2,4 @@ export {
 	createProjectSchema,
 	reorderProjectsSchema,
 	updateProjectSchema
-} from '@simple-gantt/shared/tasks';
+} from '@simple-gantt/shared/tasks-node';

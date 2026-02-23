@@ -34,6 +34,7 @@ describe('/+page.svelte', () => {
 		await expect.element(page.getByRole('combobox', { name: 'Project' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Task 追加' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: '取込' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '出力' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Day' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Week' })).toBeInTheDocument();

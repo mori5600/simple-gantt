@@ -1,1 +1,1 @@
-export { createUserSchema, updateUserSchema } from '@simple-gantt/shared/tasks';
+export { createUserSchema, updateUserSchema } from '@simple-gantt/shared/tasks-node';

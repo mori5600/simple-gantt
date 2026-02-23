@@ -4,12 +4,18 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
+		"build": "tsc -p tsconfig.build.json && node ../scripts/fix-relative-imports.mjs dist",
 		"lint": "pnpm --dir .. exec prettier --check shared --ignore-path .prettierignore",
 		"format": "pnpm --dir .. exec prettier --write shared --ignore-path .prettierignore"
 	},
 	"exports": {
 		".": "./src/index.ts",
-		"./tasks": "./src/tasks.ts"
+		"./tasks": "./src/tasks.ts",
+		"./tasks-node": {
+			"types": "./src/tasks.ts",
+			"production": "./dist/tasks-node.js",
+			"default": "./src/tasks.ts"
+		}
 	},
 	"types": "./src/index.ts",
 	"dependencies": {

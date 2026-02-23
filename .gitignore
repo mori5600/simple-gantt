@@ -9,6 +9,8 @@ node_modules
 /build
 /frontend/.svelte-kit
 /frontend/build
+/backend/dist
+/shared/dist
 
 # OS
 .DS_Store

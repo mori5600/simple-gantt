@@ -1,1 +1,1 @@
-export { createTaskSchema, reorderTasksSchema, updateTaskSchema } from '@simple-gantt/shared/tasks';
+export { createTaskSchema, reorderTasksSchema, updateTaskSchema } from '@simple-gantt/shared/tasks-node';
