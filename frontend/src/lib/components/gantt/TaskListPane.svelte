@@ -225,7 +225,7 @@
 			{@const assigneeNames = getAssigneeNames(task)}
 			<button
 				type="button"
-				class={`grid h-12 w-full min-w-0 border-b border-slate-200 text-left text-sm ${
+				class={`grid h-12 w-full min-w-0 border-b border-slate-200 text-left text-sm text-slate-800 ${
 					task.id === selectedTaskId ? 'bg-sky-50/70' : 'bg-white hover:bg-slate-50'
 				} ${dragTaskId === task.id ? 'cursor-grabbing' : 'cursor-grab'} ${
 					dragOverTaskId === task.id ? 'bg-sky-100/70 ring-1 ring-sky-300' : ''
@@ -256,7 +256,7 @@
 				</div>
 				<span
 					class={`truncate border-r border-slate-200 px-3 text-xs ${
-						task.assigneeIds.length === 0 ? 'text-slate-400' : 'text-slate-700'
+						task.assigneeIds.length === 0 ? 'text-slate-600' : 'text-slate-700'
 					}`}
 					title={assigneeNames.join(', ') || '未割り当て'}
 				>

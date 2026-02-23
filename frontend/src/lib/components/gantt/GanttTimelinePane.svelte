@@ -451,7 +451,7 @@
 					{#each timelineCells as cell (cell.date)}
 						<div
 							class={`flex shrink-0 items-end justify-center border-r border-slate-300 pb-1 text-[11px] font-medium ${
-								cell.weekend ? 'bg-slate-200/60 text-slate-500' : 'text-slate-600'
+								cell.weekend ? 'bg-slate-200 text-slate-700' : 'text-slate-700'
 							}`}
 							style={`width: ${dayWidth}px;`}
 							title={cell.date}
