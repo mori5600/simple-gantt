@@ -44,6 +44,6 @@ export async function initializeDatabase(): Promise<void> {
 
 	const busyTimeoutMs = resolveSqliteBusyTimeoutMs(process.env.SQLITE_BUSY_TIMEOUT_MS);
 
-	await prisma.$executeRawUnsafe('PRAGMA journal_mode = WAL;');
-	await prisma.$executeRawUnsafe(`PRAGMA busy_timeout = ${busyTimeoutMs};`);
+	await prisma.$queryRawUnsafe('PRAGMA journal_mode = WAL;');
+	await prisma.$queryRawUnsafe(`PRAGMA busy_timeout = ${busyTimeoutMs};`);
 }
