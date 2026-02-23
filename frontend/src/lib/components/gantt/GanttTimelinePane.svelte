@@ -7,6 +7,7 @@
 		isWeekend,
 		toIsoDate
 	} from '$lib/features/gantt/date';
+	import { buildDependencyPath } from '$lib/features/gantt/dependencyLink';
 	import type { ZoomLevel } from '$lib/features/gantt/types';
 	import type { Task } from '$lib/tasksRepo';
 
@@ -293,11 +294,17 @@
 			const toX = taskGeometry.left;
 			const fromY = fromIndex * TASK_ROW_HEIGHT + TASK_BAR_CENTER_Y;
 			const toY = toIndex * TASK_ROW_HEIGHT + TASK_BAR_CENTER_Y;
-			const bendX = Math.max(fromX + LINK_BEND_OFFSET, toX - LINK_BEND_OFFSET);
 
 			links.push({
 				id: `${predecessor.id}->${task.id}`,
-				path: `M ${fromX} ${fromY} L ${bendX} ${fromY} L ${bendX} ${toY} L ${toX} ${toY}`,
+				path: buildDependencyPath({
+					fromX,
+					toX,
+					fromY,
+					toY,
+					rowHeight: TASK_ROW_HEIGHT,
+					bendOffset: LINK_BEND_OFFSET
+				}),
 				arrowPoints: `${toX},${toY} ${toX - 6},${toY - 4} ${toX - 6},${toY + 4}`,
 				isViolation: taskGeometry.startDate < predecessorGeometry.endDate
 			});
