@@ -32,6 +32,37 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
+## Dockerでの運用起動
+
+`compose.yaml` は運用向けに以下の3サービスで構成されています。
+
+- `gateway` (nginx): 外部公開用の入口 (`APP_PORT`, デフォルト `8080`)
+- `frontend` (SvelteKit adapter-node)
+- `backend` (Hono + Prisma + SQLite)
+
+起動:
+
+```sh
+docker compose up -d --build
+```
+
+停止:
+
+```sh
+docker compose down
+```
+
+データ永続化:
+
+- SQLite: `sqlite_data` volume (`/data/simple-gantt.db`)
+- backendログ: `backend_logs` volume (`/app/backend/logs`)
+
+公開ポート変更:
+
+```sh
+APP_PORT=80 docker compose up -d --build
+```
+
 ## 開発
 
 フロントエンド:
