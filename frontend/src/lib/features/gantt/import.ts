@@ -205,12 +205,14 @@ function parseAssigneeNames(text: string): string[] {
 	if (normalized.length === 0 || normalized === '未割り当て') {
 		return [];
 	}
-	return [...new Set(
-		normalized
-		.split(/[、,]/)
-		.map((name) => name.trim())
-		.filter((name) => name.length > 0)
-	)];
+	return [
+		...new Set(
+			normalized
+				.split(/[、,]/)
+				.map((name) => name.trim())
+				.filter((name) => name.length > 0)
+		)
+	];
 }
 
 function toUserIdByNameMap(users: readonly User[]): Map<string, string> {
@@ -235,7 +237,9 @@ export function parseTaskImportCsv(csvText: string): TaskImportRow[] {
 	return toTaskImportRows(parseCsvTable(csvText));
 }
 
-export function parseTaskImportSheetData(sheetData: readonly (readonly unknown[])[]): TaskImportRow[] {
+export function parseTaskImportSheetData(
+	sheetData: readonly (readonly unknown[])[]
+): TaskImportRow[] {
 	return toTaskImportRows(sheetData);
 }
 
@@ -249,7 +253,10 @@ export async function parseTaskImportFile(file: File): Promise<TaskImportRow[]> 
 		const xlsx = await import('xlsx');
 		const workbook = xlsx.read(await file.arrayBuffer(), { type: 'array' });
 		const firstSheetName = workbook.SheetNames[0];
-		assertContract(typeof firstSheetName === 'string' && firstSheetName.length > 0, 'XLSX にシートがありません。');
+		assertContract(
+			typeof firstSheetName === 'string' && firstSheetName.length > 0,
+			'XLSX にシートがありません。'
+		);
 		const firstSheet = workbook.Sheets[firstSheetName];
 		assertContract(Boolean(firstSheet), 'XLSX シートの読み込みに失敗しました。');
 		const sheetData = xlsx.utils.sheet_to_json(firstSheet, {
@@ -377,15 +384,16 @@ export function planTaskImportDrafts(params: {
 				missingAssigneeNames
 			};
 		}
-		throw new TaskImportContractError(
-			`担当者が未登録です: ${missingAssigneeNames.join(', ')}`
-		);
+		throw new TaskImportContractError(`担当者が未登録です: ${missingAssigneeNames.join(', ')}`);
 	}
 
 	const drafts = validatedRows.map((row) => {
 		const assigneeIds = row.assigneeNames.map((name) => {
 			const userId = userIdByName.get(name);
-			assertContract(typeof userId === 'string', `行 ${row.rowNumber}: 担当者 "${name}" が存在しません。`);
+			assertContract(
+				typeof userId === 'string',
+				`行 ${row.rowNumber}: 担当者 "${name}" が存在しません。`
+			);
 			return userId;
 		});
 		return {

@@ -50,7 +50,16 @@ describe('task import helpers', () => {
 
 	it('parseTaskImportSheetData should parse header aliases with key names', () => {
 		const rows = parseTaskImportSheetData([
-			['taskId', 'title', 'startDate', 'endDate', 'progress', 'assignees', 'predecessorTaskId', 'note'],
+			[
+				'taskId',
+				'title',
+				'startDate',
+				'endDate',
+				'progress',
+				'assignees',
+				'predecessorTaskId',
+				'note'
+			],
 			['task-10', '実装', '2026-03-01', '2026-03-05', 70, '伊藤', '', '作業中']
 		]);
 
@@ -70,11 +79,13 @@ describe('task import helpers', () => {
 	});
 
 	it('toTaskImportDrafts should map assignee names and validate predecessor references', () => {
-		const rows = parseTaskImportCsv([
-			'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
-			'task-1,要件確認,2026-02-20,2026-02-21,40,伊藤,,',
-			'task-2,実装,2026-02-22,2026-02-23,20,佐藤,task-1,'
-		].join('\n'));
+		const rows = parseTaskImportCsv(
+			[
+				'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+				'task-1,要件確認,2026-02-20,2026-02-21,40,伊藤,,',
+				'task-2,実装,2026-02-22,2026-02-23,20,佐藤,task-1,'
+			].join('\n')
+		);
 
 		const drafts = toTaskImportDrafts({
 			rows,
@@ -113,11 +124,13 @@ describe('task import helpers', () => {
 	});
 
 	it('toTaskImportDrafts should fail fast on unknown assignee names', () => {
-		const rows = parseTaskImportCsv([
-			'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
-			'task-1,要件確認,2026-02-20,2026-02-21,40,伊藤,,',
-			'task-2,実装,2026-02-22,2026-02-23,20,未知ユーザー,,'
-		].join('\n'));
+		const rows = parseTaskImportCsv(
+			[
+				'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+				'task-1,要件確認,2026-02-20,2026-02-21,40,伊藤,,',
+				'task-2,実装,2026-02-22,2026-02-23,20,未知ユーザー,,'
+			].join('\n')
+		);
 
 		expect(() =>
 			toTaskImportDrafts({
@@ -129,12 +142,14 @@ describe('task import helpers', () => {
 	});
 
 	it('planTaskImportDrafts should return missing assignees when allow mode is enabled', () => {
-		const rows = parseTaskImportCsv([
-			'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
-			'task-1,要件確認,2026-02-20,2026-02-21,40,伊藤,,',
-			'task-2,実装,2026-02-22,2026-02-23,20,新規ユーザーA,task-1,',
-			'task-3,検証,2026-02-24,2026-02-24,0,新規ユーザーB,,'
-		].join('\n'));
+		const rows = parseTaskImportCsv(
+			[
+				'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+				'task-1,要件確認,2026-02-20,2026-02-21,40,伊藤,,',
+				'task-2,実装,2026-02-22,2026-02-23,20,新規ユーザーA,task-1,',
+				'task-3,検証,2026-02-24,2026-02-24,0,新規ユーザーB,,'
+			].join('\n')
+		);
 
 		const plan = planTaskImportDrafts({
 			rows,
@@ -151,16 +166,20 @@ describe('task import helpers', () => {
 
 	it('helpers should reject missing required headers and dangling predecessor ids', () => {
 		expect(() =>
-			parseTaskImportCsv([
-				'タスクID,タイトル,開始日,終了日,担当者,先行タスクID,メモ',
-				'task-1,要件確認,2026-02-20,2026-02-21,伊藤,,'
-			].join('\n'))
+			parseTaskImportCsv(
+				[
+					'タスクID,タイトル,開始日,終了日,担当者,先行タスクID,メモ',
+					'task-1,要件確認,2026-02-20,2026-02-21,伊藤,,'
+				].join('\n')
+			)
 		).toThrowError(TaskImportContractError);
 
-		const rows = parseTaskImportCsv([
-			'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
-			'task-1,要件確認,2026-02-20,2026-02-21,40,伊藤,missing-task,'
-		].join('\n'));
+		const rows = parseTaskImportCsv(
+			[
+				'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+				'task-1,要件確認,2026-02-20,2026-02-21,40,伊藤,missing-task,'
+			].join('\n')
+		);
 
 		expect(() =>
 			toTaskImportDrafts({

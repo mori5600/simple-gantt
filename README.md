@@ -34,11 +34,12 @@ cp frontend/.env.example frontend/.env
 
 ## Dockerでの運用起動
 
-`compose.yaml` は運用向けに以下の3サービスで構成されています。
+`compose.yaml` は運用向けに以下の4サービスで構成されています。
 
 - `gateway` (nginx): 外部公開用の入口 (`APP_PORT`, デフォルト `8080`)
-- `frontend` (SvelteKit adapter-node)
+- `frontend` (SvelteKit adapter-static の成果物を nginx で配信)
 - `backend` (Hono + Prisma + SQLite)
+- `db-migrate` (起動時の Prisma `db push`)
 
 起動:
 
@@ -98,8 +99,10 @@ pnpm frontend:preview:lan
 
 - `frontend:build`: `svelte-kit sync` + `vite build`
 - `frontend:build:strict`: `lint` + `check` + `build`
-- `frontend:start`: `build` 済み成果物を Node.js で起動
-- `frontend:preview:lan`: `0.0.0.0:4173` で待ち受け
+- `frontend:start`: `vite preview` で `0.0.0.0:4173` に固定して確認
+- `frontend:preview`: `vite preview` (ホスト/ポートはデフォルト)
+- `frontend:preview:lan`: `vite preview` を `0.0.0.0:4173` で起動
+- `adapter-static` の SPA fallback は `frontend/svelte.config.js` で `200.html` を生成
 
 ワークスペース全体から実行する場合:
 
@@ -176,10 +179,10 @@ pnpm --filter @simple-gantt/backend start
 
 # terminal 2: frontend
 pnpm build
-HOST=0.0.0.0 PORT=<FRONTEND_PORT> pnpm start
+pnpm preview -- --host 0.0.0.0 --port <FRONTEND_PORT> --strictPort
 
-# または preview を使う場合
-pnpm preview -- --host 0.0.0.0 --port <FRONTEND_PORT>
+# または 4173 固定で起動する場合
+pnpm start
 
 # または preview (4173 固定)
 pnpm preview:lan

@@ -155,7 +155,7 @@
 				<span class="truncate">Task</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize task column"
 					onpointerdown={(event) => startResize(event, 0)}
 				></button>
@@ -164,7 +164,7 @@
 				<span class="truncate">Assignee</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize assign column"
 					onpointerdown={(event) => startResize(event, 1)}
 				></button>
@@ -173,7 +173,7 @@
 				<span class="truncate">Start</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize start column"
 					onpointerdown={(event) => startResize(event, 2)}
 				></button>
@@ -182,7 +182,7 @@
 				<span class="truncate">End</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize end column"
 					onpointerdown={(event) => startResize(event, 3)}
 				></button>
@@ -191,7 +191,7 @@
 				<span class="truncate">Progress</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70"
+					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize progress column"
 					onpointerdown={(event) => startResize(event, 4)}
 				></button>
