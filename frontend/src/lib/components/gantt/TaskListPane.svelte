@@ -21,12 +21,10 @@
 		getAssigneeNames,
 		hasDependencyViolation,
 		columnWidths,
-		isAutoWidth,
 		onSelect,
 		onEdit,
 		onReorder,
-		onColumnWidthsChange,
-		onAutoFit
+		onColumnWidthsChange
 	} = $props<{
 		tasks: Task[];
 		totalTasks?: number;
@@ -37,12 +35,10 @@
 		getAssigneeNames: (task: Task) => string[];
 		hasDependencyViolation: (task: Task) => boolean;
 		columnWidths: ListColumnWidths;
-		isAutoWidth: boolean;
 		onSelect: (taskId: string) => void;
 		onEdit: (task: Task) => void;
 		onReorder: (sourceTaskId: string, targetTaskId: string) => void | Promise<void>;
 		onColumnWidthsChange: (nextWidths: ListColumnWidths) => void;
-		onAutoFit: () => void;
 	}>();
 
 	let resizeState = $state<ResizeState | null>(null);
@@ -155,7 +151,7 @@
 				<span class="truncate">Task</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
+					class="absolute top-1/2 right-0 z-10 h-12 w-12 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize task column"
 					onpointerdown={(event) => startResize(event, 0)}
 				></button>
@@ -164,7 +160,7 @@
 				<span class="truncate">Assignee</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
+					class="absolute top-1/2 right-0 z-10 h-12 w-12 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize assign column"
 					onpointerdown={(event) => startResize(event, 1)}
 				></button>
@@ -173,7 +169,7 @@
 				<span class="truncate">Start</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
+					class="absolute top-1/2 right-0 z-10 h-12 w-12 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize start column"
 					onpointerdown={(event) => startResize(event, 2)}
 				></button>
@@ -182,32 +178,20 @@
 				<span class="truncate">End</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
+					class="absolute top-1/2 right-0 z-10 h-12 w-12 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize end column"
 					onpointerdown={(event) => startResize(event, 3)}
 				></button>
 			</div>
-			<div class="relative flex min-w-0 items-center pr-14 pl-3 uppercase">
+			<div class="relative flex min-w-0 items-center px-3 uppercase">
 				<span class="truncate">Progress</span>
 				<button
 					type="button"
-					class="absolute top-1/2 right-0 z-10 h-12 w-11 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
+					class="absolute top-1/2 right-0 z-10 h-12 w-12 -translate-y-1/2 cursor-col-resize bg-transparent focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none"
 					aria-label="Resize progress column"
 					onpointerdown={(event) => startResize(event, 4)}
 				></button>
 			</div>
-			<button
-				type="button"
-				class={`absolute top-1/2 right-2 -translate-y-1/2 rounded border px-1.5 py-0.5 text-[10px] leading-none ${
-					isAutoWidth
-						? 'border-sky-300 bg-sky-50 text-sky-700'
-						: 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
-				}`}
-				onclick={onAutoFit}
-				title="列幅を自動調整"
-			>
-				Auto
-			</button>
 		</div>
 	</div>
 

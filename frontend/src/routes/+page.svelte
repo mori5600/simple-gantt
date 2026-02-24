@@ -710,11 +710,13 @@
 			{zoom}
 			{projects}
 			{selectedProjectId}
+			{isListColumnAuto}
 			hasSelectedTask={Boolean(selectedTask)}
 			onProjectChange={(projectId) => void changeProject(projectId)}
 			onCreate={openCreateModal}
 			onEdit={() => openTaskEditPage()}
 			onDelete={deleteSelectedTask}
+			onAutoFit={autoFitListColumns}
 			onImport={(file) => void importTasks(file)}
 			importDisabled={selectedProjectId.length === 0 || pendingMissingAssigneeNames.length > 0}
 			{isImporting}
@@ -795,12 +797,10 @@
 					{getAssigneeNames}
 					{hasDependencyViolation}
 					columnWidths={listColumnWidths}
-					isAutoWidth={isListColumnAuto}
 					onSelect={selectTask}
 					onEdit={openTaskEditPage}
 					onReorder={reorderTasks}
 					onColumnWidthsChange={setListColumnWidths}
-					onAutoFit={autoFitListColumns}
 				/>
 				<GanttTimelinePane
 					tasks={visibleTasks}

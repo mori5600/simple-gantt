@@ -10,6 +10,7 @@
 		zoom,
 		projects,
 		selectedProjectId,
+		isListColumnAuto,
 		hasSelectedTask,
 		importDisabled,
 		isImporting,
@@ -19,6 +20,7 @@
 		onCreate,
 		onEdit,
 		onDelete,
+		onAutoFit,
 		onImport,
 		onExport,
 		onZoomChange
@@ -26,6 +28,7 @@
 		zoom: ZoomLevel;
 		projects: readonly Project[];
 		selectedProjectId: string;
+		isListColumnAuto: boolean;
 		hasSelectedTask: boolean;
 		importDisabled: boolean;
 		isImporting: boolean;
@@ -35,6 +38,7 @@
 		onCreate: () => void;
 		onEdit: () => void;
 		onDelete: () => void;
+		onAutoFit: () => void;
 		onImport: (file: File) => void;
 		onExport: (format: ExportFormat) => void;
 		onZoomChange: (zoom: ZoomLevel) => void;
@@ -177,7 +181,9 @@
 					>
 						{isImporting ? '取込中...' : '取込'}
 					</button>
+					<label for="gantt-import-file" class="sr-only">取込ファイル</label>
 					<input
+						id="gantt-import-file"
 						type="file"
 						accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 						class="sr-only"
@@ -220,6 +226,19 @@
 							</div>
 						{/if}
 					</div>
+					<button
+						type="button"
+						class={`h-10 rounded-xl border px-4 text-sm font-semibold transition focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none ${
+							isListColumnAuto
+								? 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100'
+								: 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+						}`}
+						onclick={onAutoFit}
+						aria-pressed={isListColumnAuto}
+						title="タスクリストの列幅を自動調整"
+					>
+						Auto Fit
+					</button>
 				</div>
 			</div>
 
