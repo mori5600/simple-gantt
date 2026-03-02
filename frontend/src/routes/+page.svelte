@@ -53,13 +53,14 @@
 		validateTaskForm
 	} from '$lib/features/gantt/state';
 	import { resolvePollIntervalMs, startVisibilityPolling } from '$lib/polling';
+	import { resolvePollingIntervalForScope } from '$lib/pollingSettings';
 	import type { ListColumnWidths, TaskDateRange, ZoomLevel } from '$lib/features/gantt/types';
 	import { tasksStore } from '$lib/tasksStore';
 	import { tasksRepo, type Project, type Task, type User } from '$lib/tasksRepo';
 
 	const FILTERS_STORAGE_KEY = 'simple-gantt:task-filters:v1';
 	const PROJECT_STORAGE_KEY = 'simple-gantt:selected-project:v1';
-	const SYNC_POLL_INTERVAL_MS = resolvePollIntervalMs(
+	const DEFAULT_GANTT_SYNC_POLL_INTERVAL_MS = resolvePollIntervalMs(
 		15_000,
 		'VITE_GANTT_SYNC_POLL_INTERVAL_MS',
 		'PUBLIC_GANTT_SYNC_POLL_INTERVAL_MS',
@@ -173,25 +174,33 @@
 		const unsubscribeUsers = tasksStore.users.subscribe((nextUsers) => {
 			users = nextUsers;
 		});
-		const syncPolling = startVisibilityPolling({
-			intervalMs: SYNC_POLL_INTERVAL_MS,
-			isEnabled: () =>
-				shouldEnableGanttSync({
-					selectedProjectId,
-					isSubmitting,
-					isInitialized: isInitialLoadCompleted
-				}),
-			onPoll: async () => {
-				const projectId = selectedProjectId;
-				if (!projectId) {
-					return;
-				}
-				await tasksStore.refresh(projectId);
-			},
-			onError: (error) => {
-				actionError = error instanceof Error ? error.message : '同期に失敗しました。';
-			}
+		const syncPollIntervalMs = resolvePollingIntervalForScope({
+			scope: 'gantt',
+			defaultIntervalMs: DEFAULT_GANTT_SYNC_POLL_INTERVAL_MS,
+			storage: typeof localStorage === 'undefined' ? undefined : localStorage
 		});
+		const syncPolling =
+			syncPollIntervalMs === null
+				? null
+				: startVisibilityPolling({
+						intervalMs: syncPollIntervalMs,
+						isEnabled: () =>
+							shouldEnableGanttSync({
+								selectedProjectId,
+								isSubmitting,
+								isInitialized: isInitialLoadCompleted
+							}),
+						onPoll: async () => {
+							const projectId = selectedProjectId;
+							if (!projectId) {
+								return;
+							}
+							await tasksStore.refresh(projectId);
+						},
+						onError: (error) => {
+							actionError = error instanceof Error ? error.message : '同期に失敗しました。';
+						}
+					});
 
 		void (async () => {
 			actionError = '';
@@ -212,7 +221,7 @@
 			isInitialLoadCompleted = true;
 		})();
 		return () => {
-			syncPolling.stop();
+			syncPolling?.stop();
 			unsubscribeTasks();
 			unsubscribeProjects();
 			unsubscribeUsers();

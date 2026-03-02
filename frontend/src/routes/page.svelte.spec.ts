@@ -39,6 +39,7 @@ describe('/+page.svelte', () => {
 		await expect.element(page.getByRole('button', { name: 'Day' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Week' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Month' })).toBeInTheDocument();
+		await expect.element(page.getByRole('link', { name: '設定' })).toBeInTheDocument();
 	});
 
 	it('should open export menu and show csv/xlsx options', async () => {

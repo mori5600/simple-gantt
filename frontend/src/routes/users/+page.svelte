@@ -2,8 +2,9 @@
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { resolvePollIntervalMs, startVisibilityPolling } from '$lib/polling';
+	import { resolvePollingIntervalForScope } from '$lib/pollingSettings';
 	import { tasksRepo, type UserSummary } from '$lib/tasksRepo';
-	const SYNC_POLL_INTERVAL_MS = resolvePollIntervalMs(
+	const DEFAULT_ADMIN_SYNC_POLL_INTERVAL_MS = resolvePollIntervalMs(
 		20_000,
 		'VITE_ADMIN_SYNC_POLL_INTERVAL_MS',
 		'PUBLIC_ADMIN_SYNC_POLL_INTERVAL_MS',
@@ -38,18 +39,27 @@
 
 	onMount(() => {
 		void loadUsers();
-		const syncPolling = startVisibilityPolling({
-			intervalMs: SYNC_POLL_INTERVAL_MS,
-			isEnabled: () => !isSubmitting && editingUserId === null,
-			onPoll: async () => {
-				await loadUsers({ silent: true });
-			},
-			onError: (pollError) => {
-				error = pollError instanceof Error ? pollError.message : 'ユーザー同期に失敗しました。';
-			}
+		const syncPollIntervalMs = resolvePollingIntervalForScope({
+			scope: 'admin',
+			defaultIntervalMs: DEFAULT_ADMIN_SYNC_POLL_INTERVAL_MS,
+			storage: typeof localStorage === 'undefined' ? undefined : localStorage
 		});
+		const syncPolling =
+			syncPollIntervalMs === null
+				? null
+				: startVisibilityPolling({
+						intervalMs: syncPollIntervalMs,
+						isEnabled: () => !isSubmitting && editingUserId === null,
+						onPoll: async () => {
+							await loadUsers({ silent: true });
+						},
+						onError: (pollError) => {
+							error =
+								pollError instanceof Error ? pollError.message : 'ユーザー同期に失敗しました。';
+						}
+					});
 		return () => {
-			syncPolling.stop();
+			syncPolling?.stop();
 		};
 	});
 

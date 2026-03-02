@@ -146,6 +146,14 @@
 					>
 						ユーザー管理
 					</a>
+					<a
+						href={resolve('/settings')}
+						class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-slate-700 transition hover:bg-slate-100"
+						aria-label="設定"
+						title="設定"
+					>
+						<i class="bi bi-gear text-base" aria-hidden="true"></i>
+					</a>
 				</div>
 
 				<div class="flex flex-wrap items-center gap-2">

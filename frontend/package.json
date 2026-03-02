@@ -45,6 +45,7 @@
 	"dependencies": {
 		"@simple-gantt/shared": "workspace:*",
 		"axios": "^1.13.5",
+		"bootstrap-icons": "^1.13.1",
 		"xlsx": "^0.18.5"
 	}
 }
