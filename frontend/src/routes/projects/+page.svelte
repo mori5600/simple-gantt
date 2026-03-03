@@ -22,6 +22,9 @@
 	let editingProjectId = $state<string | null>(null);
 	let editingName = $state('');
 	let searchQuery = $state('');
+	let pendingDeleteProject = $state<ProjectSummary | null>(null);
+	let deleteProjectNameInput = $state('');
+	let deleteDialogError = $state('');
 
 	const canCreate = $derived(createName.trim().length > 0 && !isSubmitting);
 	const filteredProjects = $derived.by(() => {
@@ -49,7 +52,8 @@
 				? null
 				: startVisibilityPolling({
 						intervalMs: syncPollIntervalMs,
-						isEnabled: () => !isSubmitting && editingProjectId === null,
+						isEnabled: () =>
+							!isSubmitting && editingProjectId === null && pendingDeleteProject === null,
 						onPoll: async () => {
 							await loadProjects({ silent: true });
 						},
@@ -182,25 +186,35 @@
 		return projects.findIndex((project) => project.id === projectId);
 	}
 
-	async function removeProject(project: ProjectSummary): Promise<void> {
-		if (typeof window === 'undefined') {
+	function beginDeleteProject(project: ProjectSummary): void {
+		pendingDeleteProject = project;
+		deleteProjectNameInput = '';
+		deleteDialogError = '';
+	}
+
+	function closeDeleteDialog(): void {
+		pendingDeleteProject = null;
+		deleteProjectNameInput = '';
+		deleteDialogError = '';
+	}
+
+	async function confirmDeleteProject(): Promise<void> {
+		const project = pendingDeleteProject;
+		if (!project) {
 			return;
 		}
-
-		const confirmed = window.confirm(
-			project.taskCount > 0
-				? `"${project.name}" を削除します。このプロジェクトの ${project.taskCount} 件のタスクも削除されます。よろしいですか？`
-				: `"${project.name}" を削除します。よろしいですか？`
-		);
-		if (!confirmed) {
+		if (deleteProjectNameInput !== project.name) {
+			deleteDialogError = 'プロジェクト名が一致しません。';
 			return;
 		}
 
 		isSubmitting = true;
 		error = '';
 		success = '';
+		deleteDialogError = '';
 		try {
 			await tasksRepo.removeProject(project.id);
+			closeDeleteDialog();
 			success = 'プロジェクトを削除しました。';
 			await loadProjects();
 		} catch (removeError) {
@@ -363,7 +377,7 @@
 												<button
 													type="button"
 													class="rounded-lg border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
-													onclick={() => void removeProject(project)}
+													onclick={() => beginDeleteProject(project)}
 													disabled={isSubmitting}
 													title="プロジェクトを削除"
 												>
@@ -381,3 +395,86 @@
 		</section>
 	</div>
 </div>
+
+{#if pendingDeleteProject}
+	<div
+		class="fixed inset-0 z-40 grid place-items-center bg-slate-900/35 p-4"
+		role="presentation"
+		onclick={(event) => {
+			if (event.target === event.currentTarget && !isSubmitting) {
+				closeDeleteDialog();
+			}
+		}}
+	>
+		<div
+			class="w-full max-w-md rounded-xl border border-slate-300 bg-white p-4 shadow-xl"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="delete-project-dialog-title"
+		>
+			<div class="mb-3 flex items-center justify-between">
+				<h2 id="delete-project-dialog-title" class="text-base font-semibold text-slate-900">
+					プロジェクトを削除
+				</h2>
+				<button
+					type="button"
+					class="rounded-md px-2 py-1 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+					onclick={closeDeleteDialog}
+					disabled={isSubmitting}
+					aria-label="close delete dialog"
+				>
+					×
+				</button>
+			</div>
+			<div class="grid gap-3">
+				<p class="text-sm text-slate-700">
+					この操作は取り消せません。削除を続行するには、
+					<span class="rounded bg-slate-100 px-1 py-0.5 font-semibold text-slate-900">
+						{pendingDeleteProject.name}
+					</span>
+					を入力してください。
+				</p>
+				{#if pendingDeleteProject.taskCount > 0}
+					<p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+						このプロジェクトの {pendingDeleteProject.taskCount} 件のタスクも削除されます。
+					</p>
+				{/if}
+				<label class="grid gap-1 text-sm font-semibold text-slate-700">
+					<span>プロジェクト名</span>
+					<input
+						type="text"
+						name="deleteProjectConfirmName"
+						class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
+						value={deleteProjectNameInput}
+						oninput={(event) => {
+							deleteProjectNameInput = (event.currentTarget as HTMLInputElement).value;
+							deleteDialogError = '';
+						}}
+						placeholder={pendingDeleteProject.name}
+					/>
+				</label>
+				{#if deleteDialogError}
+					<p class="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{deleteDialogError}</p>
+				{/if}
+				<div class="mt-1 flex justify-end gap-2">
+					<button
+						type="button"
+						class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+						onclick={closeDeleteDialog}
+						disabled={isSubmitting}
+					>
+						キャンセル
+					</button>
+					<button
+						type="button"
+						class="rounded-lg border border-rose-300 bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-45"
+						onclick={() => void confirmDeleteProject()}
+						disabled={isSubmitting || deleteProjectNameInput !== pendingDeleteProject.name}
+					>
+						削除を確定
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}

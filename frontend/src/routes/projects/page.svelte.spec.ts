@@ -44,8 +44,7 @@ describe('/projects/+page.svelte', () => {
 		await expect.element(page.getByText('Mobile App')).not.toBeInTheDocument();
 	});
 
-	it('should allow deleting a project even when it has tasks', async () => {
-		const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true);
+	it('should require matching project name before deleting', async () => {
 		render(Page);
 
 		await expect.element(page.getByText('Default Project')).toBeInTheDocument();
@@ -53,7 +52,18 @@ describe('/projects/+page.svelte', () => {
 		await expect.element(deleteButton).toBeEnabled();
 		await deleteButton.click();
 
+		const dialog = page.getByRole('dialog', { name: 'プロジェクトを削除' });
+		const confirmInput = dialog.getByRole('textbox', { name: /^プロジェクト名$/ });
+		const confirmDeleteButton = dialog.getByRole('button', { name: '削除を確定' });
+		await expect.element(confirmDeleteButton).toBeDisabled();
+
+		await confirmInput.fill('Default');
+		await expect.element(confirmDeleteButton).toBeDisabled();
+
+		await confirmInput.fill('Default Project');
+		await expect.element(confirmDeleteButton).toBeEnabled();
+		await confirmDeleteButton.click();
+
 		await expect.element(page.getByText('Default Project')).not.toBeInTheDocument();
-		confirmMock.mockRestore();
 	});
 });
