@@ -3,7 +3,6 @@ import {
 	createProjectRecord,
 	deleteProjectById,
 	findProjectById,
-	findProjectTaskCountById,
 	findProjectUpdatedAtById,
 	listProjects,
 	listProjectsWithTaskCount,
@@ -102,20 +101,10 @@ export async function updateProjectUseCase(
 }
 
 /**
- * タスクを保持した project の削除を禁止し、計画データの参照一貫性を守る。
+ * project を削除する。Task は DB の onDelete: Cascade で同時に削除される。
  */
 export async function deleteProjectUseCase(projectId: string): Promise<boolean> {
-	const taskCount = await findProjectTaskCountById(projectId);
-	if (taskCount === null) {
-		return false;
-	}
-
-	if (taskCount > 0) {
-		throw new ProjectModelValidationError('タスクが存在するプロジェクトは削除できません。');
-	}
-
-	await deleteProjectById(projectId);
-	return true;
+	return deleteProjectById(projectId);
 }
 
 /**

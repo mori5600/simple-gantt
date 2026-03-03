@@ -545,12 +545,10 @@ export const localTasksRepo: TasksRepo = {
 			return;
 		}
 
-		const tasks = ensureData();
-		const taskCount = tasks.filter((task) => task.projectId === id).length;
-		if (taskCount > 0) {
-			throw new Error('タスクが存在するプロジェクトは削除できません。');
+		taskCache = sortTasks(ensureData().filter((task) => task.projectId !== id));
+		if (taskHistoryCache) {
+			taskHistoryCache = taskHistoryCache.filter((entry) => entry.projectId !== id);
 		}
-
 		projectCache = sortProjects(projects.filter((project) => project.id !== id));
 	},
 

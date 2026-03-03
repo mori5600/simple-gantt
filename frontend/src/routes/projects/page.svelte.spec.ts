@@ -43,4 +43,17 @@ describe('/projects/+page.svelte', () => {
 		await expect.element(page.getByText('Default Project')).toBeInTheDocument();
 		await expect.element(page.getByText('Mobile App')).not.toBeInTheDocument();
 	});
+
+	it('should allow deleting a project even when it has tasks', async () => {
+		const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true);
+		render(Page);
+
+		await expect.element(page.getByText('Default Project')).toBeInTheDocument();
+		const deleteButton = page.getByRole('button', { name: '削除' }).first();
+		await expect.element(deleteButton).toBeEnabled();
+		await deleteButton.click();
+
+		await expect.element(page.getByText('Default Project')).not.toBeInTheDocument();
+		confirmMock.mockRestore();
+	});
 });

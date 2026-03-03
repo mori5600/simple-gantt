@@ -11,7 +11,6 @@ const {
 	updateProjectWhereUpdatedAtMock,
 	updateProjectByIdMock,
 	findProjectUpdatedAtByIdMock,
-	findProjectTaskCountByIdMock,
 	deleteProjectByIdMock,
 	listProjectIdsMock,
 	updateProjectSortOrderMock
@@ -30,7 +29,6 @@ const {
 		updateProjectWhereUpdatedAtMock: vi.fn(),
 		updateProjectByIdMock: vi.fn(),
 		findProjectUpdatedAtByIdMock: vi.fn(),
-		findProjectTaskCountByIdMock: vi.fn(),
 		deleteProjectByIdMock: vi.fn(),
 		listProjectIdsMock: vi.fn(),
 		updateProjectSortOrderMock: vi.fn()
@@ -50,7 +48,6 @@ vi.mock('../models/project-model', () => ({
 	updateProjectWhereUpdatedAt: updateProjectWhereUpdatedAtMock,
 	updateProjectById: updateProjectByIdMock,
 	findProjectUpdatedAtById: findProjectUpdatedAtByIdMock,
-	findProjectTaskCountById: findProjectTaskCountByIdMock,
 	deleteProjectById: deleteProjectByIdMock,
 	listProjectIds: listProjectIdsMock,
 	updateProjectSortOrder: updateProjectSortOrderMock
@@ -224,24 +221,14 @@ describe('project-usecases', () => {
 	});
 
 	it('deleteProjectUseCase should return false when project does not exist', async () => {
-		findProjectTaskCountByIdMock.mockResolvedValueOnce(null);
+		deleteProjectByIdMock.mockResolvedValueOnce(false);
 
 		await expect(deleteProjectUseCase('project-missing')).resolves.toBe(false);
-		expect(deleteProjectByIdMock).not.toHaveBeenCalled();
+		expect(deleteProjectByIdMock).toHaveBeenCalledWith('project-missing');
 	});
 
-	it('deleteProjectUseCase should reject when tasks exist', async () => {
-		findProjectTaskCountByIdMock.mockResolvedValueOnce(1);
-
-		await expect(deleteProjectUseCase('project-1')).rejects.toBeInstanceOf(
-			ProjectModelValidationError
-		);
-		expect(deleteProjectByIdMock).not.toHaveBeenCalled();
-	});
-
-	it('deleteProjectUseCase should delete project when no tasks exist', async () => {
-		findProjectTaskCountByIdMock.mockResolvedValueOnce(0);
-		deleteProjectByIdMock.mockResolvedValueOnce(undefined);
+	it('deleteProjectUseCase should delete project when tasks exist', async () => {
+		deleteProjectByIdMock.mockResolvedValueOnce(true);
 
 		await expect(deleteProjectUseCase('project-1')).resolves.toBe(true);
 		expect(deleteProjectByIdMock).toHaveBeenCalledWith('project-1');

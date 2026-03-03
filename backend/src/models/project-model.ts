@@ -173,12 +173,16 @@ export async function findProjectTaskCountById(
 	return existing._count.tasks;
 }
 
-export async function deleteProjectById(projectId: string, db: DbClient = prisma): Promise<void> {
-	await db.project.delete({
+export async function deleteProjectById(
+	projectId: string,
+	db: DbClient = prisma
+): Promise<boolean> {
+	const result = await db.project.deleteMany({
 		where: {
 			id: projectId
 		}
 	});
+	return result.count > 0;
 }
 
 export async function listProjectIds(db: DbClient = prisma): Promise<string[]> {

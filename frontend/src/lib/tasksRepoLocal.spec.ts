@@ -62,4 +62,22 @@ describe('localTasksRepo summaries', () => {
 		expect(nextHistory[0]?.action).toBe('updated');
 		expect(nextHistory[0]?.changedFields).toContain('title');
 	});
+
+	it('removeProject should delete project with its tasks', async () => {
+		await expect(localTasksRepo.list('project-default')).resolves.toHaveLength(2);
+
+		await localTasksRepo.removeProject('project-default');
+
+		const projects = await localTasksRepo.listProjects();
+		expect(projects.some((project) => project.id === 'project-default')).toBe(false);
+		await expect(localTasksRepo.list('project-default')).rejects.toThrow(
+			'project not found: project-default'
+		);
+
+		const userSummaries = await localTasksRepo.listUserSummaries();
+		expect(userSummaries.find((summary) => summary.id === 'user-ito')?.taskCount).toBe(0);
+		expect(userSummaries.find((summary) => summary.id === 'user-sato')?.taskCount).toBe(0);
+		expect(userSummaries.find((summary) => summary.id === 'user-yamada')?.taskCount).toBe(1);
+		expect(userSummaries.find((summary) => summary.id === 'user-suzuki')?.taskCount).toBe(1);
+	});
 });

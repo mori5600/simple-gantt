@@ -183,11 +183,15 @@
 	}
 
 	async function removeProject(project: ProjectSummary): Promise<void> {
-		if (project.taskCount > 0 || typeof window === 'undefined') {
+		if (typeof window === 'undefined') {
 			return;
 		}
 
-		const confirmed = window.confirm(`"${project.name}" を削除します。よろしいですか？`);
+		const confirmed = window.confirm(
+			project.taskCount > 0
+				? `"${project.name}" を削除します。このプロジェクトの ${project.taskCount} 件のタスクも削除されます。よろしいですか？`
+				: `"${project.name}" を削除します。よろしいですか？`
+		);
 		if (!confirmed) {
 			return;
 		}
@@ -360,10 +364,8 @@
 													type="button"
 													class="rounded-lg border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
 													onclick={() => void removeProject(project)}
-													disabled={project.taskCount > 0 || isSubmitting}
-													title={project.taskCount > 0
-														? 'タスクがあるため削除できません'
-														: 'プロジェクトを削除'}
+													disabled={isSubmitting}
+													title="プロジェクトを削除"
 												>
 													削除
 												</button>
