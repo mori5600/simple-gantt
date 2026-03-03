@@ -5,6 +5,10 @@ FROM node:24-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
+RUN apt update -y \
+	&& apt install -y --no-install-recommends openssl \
+	&& rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable && corepack prepare pnpm@10.30.2 --activate
 
 WORKDIR /app
@@ -34,15 +38,9 @@ COPY shared/package.json shared/package.json
 
 RUN pnpm install --prod --frozen-lockfile --filter @simple-gantt/backend...
 
-FROM node:24-slim AS runtime-backend
+FROM base AS runtime-backend
 
-ENV PNPM_HOME=/pnpm
-ENV PATH=$PNPM_HOME:$PATH
 ENV NODE_ENV=production
-
-RUN corepack enable && corepack prepare pnpm@10.30.2 --activate
-
-WORKDIR /app
 
 COPY --from=backend-deps-prod /app/ ./
 COPY --from=backend-build /app/backend/dist backend/dist
