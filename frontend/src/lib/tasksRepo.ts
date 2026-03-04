@@ -13,6 +13,7 @@ import type {
 	Project,
 	ProjectSummary,
 	ReorderProjectsInput,
+	SetProjectMembersInput,
 	Task,
 	TaskHistoryEntry,
 	UpdateProjectInput,
@@ -29,6 +30,7 @@ export type {
 	Project,
 	ProjectSummary,
 	ReorderProjectsInput,
+	SetProjectMembersInput,
 	Task,
 	TaskHistoryEntry,
 	UpdateProjectInput,
@@ -45,6 +47,11 @@ export type TasksRepo = {
 	updateProject: (id: string, input: UpdateProjectInput) => Promise<Project>;
 	reorderProjects: (ids: ReorderProjectsInput['ids']) => Promise<Project[]>;
 	removeProject: (id: string) => Promise<void>;
+	listProjectMembers: (projectId: string) => Promise<User[]>;
+	setProjectMembers: (
+		projectId: string,
+		userIds: SetProjectMembersInput['userIds']
+	) => Promise<User[]>;
 	listUsers: () => Promise<User[]>;
 	listUserSummaries: () => Promise<UserSummary[]>;
 	createUser: (input: CreateUserInput) => Promise<User>;

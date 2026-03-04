@@ -60,7 +60,7 @@
 		try {
 			const [loadedTasks, loadedUsers, loadedHistory] = await Promise.all([
 				tasksRepo.list(currentProjectId),
-				tasksRepo.listUsers(),
+				tasksRepo.listProjectMembers(currentProjectId),
 				tasksRepo.listTaskHistory(currentProjectId, currentTaskId)
 			]);
 			const task = loadedTasks.find((row) => row.id === currentTaskId);

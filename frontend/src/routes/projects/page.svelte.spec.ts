@@ -66,4 +66,20 @@ describe('/projects/+page.svelte', () => {
 
 		await expect.element(page.getByText('Default Project')).not.toBeInTheDocument();
 	});
+
+	it('should open members dialog and save project members', async () => {
+		render(Page);
+
+		const membersButton = page.getByRole('button', { name: 'メンバー' }).first();
+		await membersButton.click();
+
+		const dialog = page.getByRole('dialog', { name: 'プロジェクトメンバー' });
+		await expect.element(dialog).toBeInTheDocument();
+
+		const suzukiCheckbox = dialog.getByRole('checkbox', { name: '鈴木' });
+		await suzukiCheckbox.click();
+		await dialog.getByRole('button', { name: '保存' }).click();
+
+		await expect.element(page.getByText('プロジェクトメンバーを更新しました。')).toBeInTheDocument();
+	});
 });

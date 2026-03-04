@@ -13,7 +13,12 @@ const {
 	findProjectUpdatedAtByIdMock,
 	deleteProjectByIdMock,
 	listProjectIdsMock,
-	updateProjectSortOrderMock
+	updateProjectSortOrderMock,
+	listProjectMembersMock,
+	listProjectMemberUserIdsMock,
+	countUsersByIdsMock,
+	countTaskAssignmentsForUsersInProjectMock,
+	replaceProjectMembersMock
 } = vi.hoisted(() => {
 	const txMock = { tx: true };
 	return {
@@ -31,7 +36,12 @@ const {
 		findProjectUpdatedAtByIdMock: vi.fn(),
 		deleteProjectByIdMock: vi.fn(),
 		listProjectIdsMock: vi.fn(),
-		updateProjectSortOrderMock: vi.fn()
+		updateProjectSortOrderMock: vi.fn(),
+		listProjectMembersMock: vi.fn(),
+		listProjectMemberUserIdsMock: vi.fn(),
+		countUsersByIdsMock: vi.fn(),
+		countTaskAssignmentsForUsersInProjectMock: vi.fn(),
+		replaceProjectMembersMock: vi.fn()
 	};
 });
 
@@ -50,17 +60,24 @@ vi.mock('../models/project-model', () => ({
 	findProjectUpdatedAtById: findProjectUpdatedAtByIdMock,
 	deleteProjectById: deleteProjectByIdMock,
 	listProjectIds: listProjectIdsMock,
-	updateProjectSortOrder: updateProjectSortOrderMock
+	updateProjectSortOrder: updateProjectSortOrderMock,
+	listProjectMembers: listProjectMembersMock,
+	listProjectMemberUserIds: listProjectMemberUserIdsMock,
+	countUsersByIds: countUsersByIdsMock,
+	countTaskAssignmentsForUsersInProject: countTaskAssignmentsForUsersInProjectMock,
+	replaceProjectMembers: replaceProjectMembersMock
 }));
 
 import {
 	createProjectUseCase,
 	deleteProjectUseCase,
+	listProjectMembersUseCase,
 	listProjectSummariesUseCase,
 	listProjectsUseCase,
 	ProjectModelValidationError,
 	ProjectOptimisticLockError,
 	reorderProjectsUseCase,
+	setProjectMembersUseCase,
 	updateProjectUseCase
 } from './project-usecases';
 
@@ -96,6 +113,38 @@ describe('project-usecases', () => {
 
 		await expect(listProjectSummariesUseCase()).resolves.toEqual(rows);
 		expect(listProjectsWithTaskCountMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('listProjectMembersUseCase should return null when project is missing', async () => {
+		findProjectByIdMock.mockResolvedValueOnce(null);
+
+		await expect(listProjectMembersUseCase('project-missing')).resolves.toBeNull();
+		expect(listProjectMembersMock).not.toHaveBeenCalled();
+	});
+
+	it('listProjectMembersUseCase should return members in project', async () => {
+		findProjectByIdMock.mockResolvedValueOnce({
+			id: 'project-1',
+			name: 'A',
+			sortOrder: 0,
+			updatedAt: new Date('2026-02-19T00:00:00.000Z')
+		});
+		listProjectMembersMock.mockResolvedValueOnce([
+			{
+				id: 'user-1',
+				name: '伊藤',
+				updatedAt: new Date('2026-02-19T00:00:00.000Z')
+			}
+		]);
+
+		await expect(listProjectMembersUseCase('project-1')).resolves.toEqual([
+			{
+				id: 'user-1',
+				name: '伊藤',
+				updatedAt: new Date('2026-02-19T00:00:00.000Z')
+			}
+		]);
+		expect(listProjectMembersMock).toHaveBeenCalledWith('project-1');
 	});
 
 	it('createProjectUseCase should create project with generated id and next sortOrder', async () => {
@@ -267,6 +316,85 @@ describe('project-usecases', () => {
 		expect(actual).toEqual([
 			{ id: 'project-2', name: 'B', sortOrder: 0, updatedAt: new Date('2026-02-20T00:00:00.000Z') },
 			{ id: 'project-1', name: 'A', sortOrder: 1, updatedAt: new Date('2026-02-20T00:00:00.000Z') }
+		]);
+	});
+
+	it('setProjectMembersUseCase should return null when project is missing', async () => {
+		findProjectByIdMock.mockResolvedValueOnce(null);
+
+		await expect(setProjectMembersUseCase('project-missing', { userIds: ['user-1'] })).resolves.toBeNull();
+		expect(replaceProjectMembersMock).not.toHaveBeenCalled();
+	});
+
+	it('setProjectMembersUseCase should reject unknown users', async () => {
+		findProjectByIdMock.mockResolvedValueOnce({
+			id: 'project-1',
+			name: 'A',
+			sortOrder: 0,
+			updatedAt: new Date('2026-02-19T00:00:00.000Z')
+		});
+		countUsersByIdsMock.mockResolvedValueOnce(0);
+
+		await expect(setProjectMembersUseCase('project-1', { userIds: ['user-1'] })).rejects.toBeInstanceOf(
+			ProjectModelValidationError
+		);
+		expect(replaceProjectMembersMock).not.toHaveBeenCalled();
+	});
+
+	it('setProjectMembersUseCase should reject removing members with assignments', async () => {
+		findProjectByIdMock.mockResolvedValueOnce({
+			id: 'project-1',
+			name: 'A',
+			sortOrder: 0,
+			updatedAt: new Date('2026-02-19T00:00:00.000Z')
+		});
+		countUsersByIdsMock.mockResolvedValueOnce(0);
+		listProjectMemberUserIdsMock.mockResolvedValueOnce(['user-1']);
+		countTaskAssignmentsForUsersInProjectMock.mockResolvedValueOnce(1);
+
+		await expect(setProjectMembersUseCase('project-1', { userIds: [] })).rejects.toBeInstanceOf(
+			ProjectModelValidationError
+		);
+		expect(replaceProjectMembersMock).not.toHaveBeenCalled();
+	});
+
+	it('setProjectMembersUseCase should replace members and return updated rows', async () => {
+		findProjectByIdMock.mockResolvedValueOnce({
+			id: 'project-1',
+			name: 'A',
+			sortOrder: 0,
+			updatedAt: new Date('2026-02-19T00:00:00.000Z')
+		});
+		countUsersByIdsMock.mockResolvedValueOnce(2);
+		listProjectMemberUserIdsMock.mockResolvedValueOnce(['user-1']);
+		countTaskAssignmentsForUsersInProjectMock.mockResolvedValueOnce(0);
+		listProjectMembersMock.mockResolvedValueOnce([
+			{
+				id: 'user-1',
+				name: '伊藤',
+				updatedAt: new Date('2026-02-19T00:00:00.000Z')
+			},
+			{
+				id: 'user-2',
+				name: '佐藤',
+				updatedAt: new Date('2026-02-19T00:00:00.000Z')
+			}
+		]);
+
+		const actual = await setProjectMembersUseCase('project-1', { userIds: ['user-1', 'user-2'] });
+
+		expect(replaceProjectMembersMock).toHaveBeenCalledWith('project-1', ['user-1', 'user-2'], txMock);
+		expect(actual).toEqual([
+			{
+				id: 'user-1',
+				name: '伊藤',
+				updatedAt: new Date('2026-02-19T00:00:00.000Z')
+			},
+			{
+				id: 'user-2',
+				name: '佐藤',
+				updatedAt: new Date('2026-02-19T00:00:00.000Z')
+			}
 		]);
 	});
 });

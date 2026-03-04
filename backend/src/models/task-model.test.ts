@@ -5,6 +5,9 @@ const { prismaMock } = vi.hoisted(() => ({
 		project: {
 			findUnique: vi.fn()
 		},
+		projectMember: {
+			count: vi.fn()
+		},
 		user: {
 			count: vi.fn()
 		},
@@ -31,6 +34,7 @@ vi.mock('./db', () => ({
 
 import {
 	countUsersByIds,
+	countProjectMembersByUserIds,
 	createTaskAssignees,
 	createTaskRecord,
 	deleteTaskByIdInProject,
@@ -240,6 +244,22 @@ describe('task-model', () => {
 		});
 
 		await expect(countUsersByIds([])).resolves.toBe(0);
+	});
+
+	it('countProjectMembersByUserIds should return count and skip empty list', async () => {
+		prismaMock.projectMember.count.mockResolvedValueOnce(1);
+
+		await expect(countProjectMembersByUserIds('project-1', ['user-1'])).resolves.toBe(1);
+		expect(prismaMock.projectMember.count).toHaveBeenCalledWith({
+			where: {
+				projectId: 'project-1',
+				userId: {
+					in: ['user-1']
+				}
+			}
+		});
+
+		await expect(countProjectMembersByUserIds('project-1', [])).resolves.toBe(0);
 	});
 
 	it('nextTaskSortOrder should return max sortOrder plus one', async () => {

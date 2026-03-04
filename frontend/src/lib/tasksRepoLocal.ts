@@ -39,10 +39,16 @@ export const LOCAL_USERS: readonly User[] = [
 	{ id: 'user-suzuki', name: '鈴木', updatedAt: LOCAL_INITIAL_UPDATED_AT }
 ];
 
+const LOCAL_PROJECT_MEMBER_IDS: Readonly<Record<string, readonly string[]>> = {
+	'project-default': ['user-ito', 'user-sato', 'user-yamada'],
+	'project-mobile': ['user-yamada', 'user-suzuki']
+};
+
 let taskCache: Task[] | null = null;
 let projectCache: Project[] | null = null;
 let userCache: User[] | null = null;
 let taskHistoryCache: TaskHistoryEntry[] | null = null;
+let projectMemberCache: Record<string, string[]> | null = null;
 
 function toIsoDate(date: Date): string {
 	const year = date.getUTCFullYear();
@@ -179,9 +185,8 @@ function normalizeAssigneeIds(value: unknown): string[] {
 		return [];
 	}
 
-	const userIdSet = currentUserIdSet();
 	const ids = value.filter(
-		(item): item is string => typeof item === 'string' && userIdSet.has(item)
+		(item): item is string => typeof item === 'string' && item.trim().length > 0
 	);
 	return [...new Set(ids)];
 }
@@ -198,6 +203,26 @@ function assertProjectExists(projectId: string): void {
 	if (!ensureProjectsData().some((project) => project.id === projectId)) {
 		throw new Error(`project not found: ${projectId}`);
 	}
+}
+
+function normalizeMemberIds(userIds: readonly string[]): string[] {
+	const userIdSet = currentUserIdSet();
+	const next: string[] = [];
+	const seen = new Set<string>();
+	for (const userId of userIds) {
+		if (typeof userId !== 'string' || userId.trim().length === 0) {
+			continue;
+		}
+		if (!userIdSet.has(userId)) {
+			throw new Error(`user not found: ${userId}`);
+		}
+		if (seen.has(userId)) {
+			continue;
+		}
+		seen.add(userId);
+		next.push(userId);
+	}
+	return next;
 }
 
 function nextProjectSortOrder(projects: Project[]): number {
@@ -249,6 +274,10 @@ function assertTaskFields(task: {
 	const userIdSet = currentUserIdSet();
 	if (!task.assigneeIds.every((id) => userIdSet.has(id))) {
 		throw new Error('assigneeIds include unknown user');
+	}
+	const projectMemberIdSet = new Set(listProjectMemberIds(task.projectId));
+	if (!task.assigneeIds.every((id) => projectMemberIdSet.has(id))) {
+		throw new Error('assigneeIds にプロジェクト未参加の user が含まれます。');
 	}
 	if (!task.predecessorTaskId) {
 		return;
@@ -374,6 +403,34 @@ function ensureUsersData(): User[] {
 	return userCache;
 }
 
+function ensureProjectMembersData(): Record<string, string[]> {
+	if (!projectMemberCache) {
+		const initial: Record<string, string[]> = {};
+		for (const project of ensureProjectsData()) {
+			initial[project.id] = [];
+		}
+		const userIdSet = currentUserIdSet();
+		for (const [projectId, userIds] of Object.entries(LOCAL_PROJECT_MEMBER_IDS)) {
+			const seen = new Set<string>();
+			initial[projectId] = userIds.filter((userId) => {
+				if (!userIdSet.has(userId) || seen.has(userId)) {
+					return false;
+				}
+				seen.add(userId);
+				return true;
+			});
+		}
+		projectMemberCache = initial;
+	}
+	return projectMemberCache;
+}
+
+function listProjectMemberIds(projectId: string): string[] {
+	assertProjectExists(projectId);
+	const members = ensureProjectMembersData()[projectId] ?? [];
+	return [...members];
+}
+
 function ensureData(): Task[] {
 	if (!taskCache) {
 		taskCache = sortTasks(createDefaultTasks());
@@ -475,6 +532,11 @@ export const localTasksRepo: TasksRepo = {
 			updatedAt: nowIsoTimestamp()
 		};
 		projectCache = sortProjects([...projects, created]);
+		const members = ensureProjectMembersData();
+		projectMemberCache = {
+			...members,
+			[created.id]: []
+		};
 		return cloneProject(created);
 	},
 
@@ -550,6 +612,47 @@ export const localTasksRepo: TasksRepo = {
 			taskHistoryCache = taskHistoryCache.filter((entry) => entry.projectId !== id);
 		}
 		projectCache = sortProjects(projects.filter((project) => project.id !== id));
+		if (projectMemberCache) {
+			const next = { ...projectMemberCache };
+			delete next[id];
+			projectMemberCache = next;
+		}
+	},
+
+	async listProjectMembers(projectId: string): Promise<User[]> {
+		const usersById = new Map(ensureUsersData().map((user) => [user.id, user] as const));
+		return listProjectMemberIds(projectId)
+			.map((userId) => usersById.get(userId))
+			.filter((user): user is User => Boolean(user))
+			.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+			.map(cloneUser);
+	},
+
+	async setProjectMembers(projectId: string, userIds: string[]): Promise<User[]> {
+		assertProjectExists(projectId);
+		const nextMemberIds = normalizeMemberIds(userIds);
+		const currentMemberIdSet = new Set(listProjectMemberIds(projectId));
+		const nextMemberIdSet = new Set(nextMemberIds);
+		const removedUserIds = [...currentMemberIdSet].filter((userId) => !nextMemberIdSet.has(userId));
+		const hasAssignedTask = ensureData().some(
+			(task) =>
+				task.projectId === projectId && task.assigneeIds.some((userId) => removedUserIds.includes(userId))
+		);
+		if (hasAssignedTask) {
+			throw new Error('担当タスクが存在するメンバーはプロジェクトから外せません。');
+		}
+
+		const members = ensureProjectMembersData();
+		projectMemberCache = {
+			...members,
+			[projectId]: [...nextMemberIds]
+		};
+		const usersById = new Map(ensureUsersData().map((user) => [user.id, user] as const));
+		return listProjectMemberIds(projectId)
+			.map((userId) => usersById.get(userId))
+			.filter((user): user is User => Boolean(user))
+			.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+			.map(cloneUser);
 	},
 
 	async listUsers(): Promise<User[]> {
@@ -615,6 +718,13 @@ export const localTasksRepo: TasksRepo = {
 		}
 
 		userCache = sortUsers(users.filter((user) => user.id !== id));
+		if (projectMemberCache) {
+			const next: Record<string, string[]> = {};
+			for (const [projectId, memberIds] of Object.entries(projectMemberCache)) {
+				next[projectId] = memberIds.filter((memberId) => memberId !== id);
+			}
+			projectMemberCache = next;
+		}
 	},
 
 	async list(projectId: string): Promise<Task[]> {
@@ -823,4 +933,5 @@ export function resetLocalTaskCacheForTest(): void {
 	projectCache = null;
 	userCache = null;
 	taskHistoryCache = null;
+	projectMemberCache = null;
 }

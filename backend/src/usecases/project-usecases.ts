@@ -1,13 +1,22 @@
-import type { CreateProjectInput, UpdateProjectInput } from '@simple-gantt/shared/tasks';
+import type {
+	CreateProjectInput,
+	SetProjectMembersInput,
+	UpdateProjectInput
+} from '@simple-gantt/shared/tasks';
 import {
+	countTaskAssignmentsForUsersInProject,
+	countUsersByIds,
 	createProjectRecord,
 	deleteProjectById,
 	findProjectById,
 	findProjectUpdatedAtById,
 	listProjects,
+	listProjectMembers,
+	listProjectMemberUserIds,
 	listProjectsWithTaskCount,
 	listProjectIds,
 	nextProjectSortOrder,
+	replaceProjectMembers,
 	type ProjectRecord,
 	type ProjectSummaryRecord,
 	updateProjectById,
@@ -39,6 +48,21 @@ export async function listProjectsUseCase(): Promise<ProjectRecord[]> {
  */
 export async function listProjectSummariesUseCase(): Promise<ProjectSummaryRecord[]> {
 	return listProjectsWithTaskCount();
+}
+
+/**
+ * project メンバー一覧を返す。
+ * project 未存在は 404 判定できるよう null を返す。
+ */
+export async function listProjectMembersUseCase(
+	projectId: string
+): Promise<{ id: string; name: string; updatedAt: Date }[] | null> {
+	const existing = await findProjectById(projectId);
+	if (!existing) {
+		return null;
+	}
+
+	return listProjectMembers(projectId);
 }
 
 /**
@@ -130,4 +154,44 @@ export async function reorderProjectsUseCase(ids: string[]): Promise<ProjectReco
 	});
 
 	return listProjects();
+}
+
+/**
+ * project メンバーを全置換で更新する。
+ * 既存 task に割り当て済みの user は除外できない。
+ */
+export async function setProjectMembersUseCase(
+	projectId: string,
+	payload: SetProjectMembersInput
+): Promise<{ id: string; name: string; updatedAt: Date }[] | null> {
+	const existing = await findProjectById(projectId);
+	if (!existing) {
+		return null;
+	}
+
+	const uniqueUserIds = [...new Set(payload.userIds)];
+	const userCount = await countUsersByIds(uniqueUserIds);
+	if (userCount !== uniqueUserIds.length) {
+		throw new ProjectModelValidationError('userIds に存在しない user が含まれます。');
+	}
+
+	await prisma.$transaction(async (tx) => {
+		const currentMemberIds = await listProjectMemberUserIds(projectId, tx);
+		const nextMemberIdSet = new Set(uniqueUserIds);
+		const removedUserIds = currentMemberIds.filter((userId) => !nextMemberIdSet.has(userId));
+		const removedAssigneeCount = await countTaskAssignmentsForUsersInProject(
+			projectId,
+			removedUserIds,
+			tx
+		);
+		if (removedAssigneeCount > 0) {
+			throw new ProjectModelValidationError(
+				'担当タスクが存在するメンバーはプロジェクトから外せません。'
+			);
+		}
+
+		await replaceProjectMembers(projectId, uniqueUserIds, tx);
+	});
+
+	return listProjectMembers(projectId);
 }

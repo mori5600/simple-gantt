@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
 	txMock,
 	prismaMock,
-	countUsersByIdsMock,
+	countProjectMembersByUserIdsMock,
 	createTaskAssigneesMock,
 	createTaskRecordMock,
 	createTaskHistoryRecordMock,
@@ -28,7 +28,7 @@ const {
 		prismaMock: {
 			$transaction: vi.fn()
 		},
-		countUsersByIdsMock: vi.fn(),
+		countProjectMembersByUserIdsMock: vi.fn(),
 		createTaskAssigneesMock: vi.fn(),
 		createTaskRecordMock: vi.fn(),
 		createTaskHistoryRecordMock: vi.fn(),
@@ -54,7 +54,7 @@ vi.mock('../models/db', () => ({
 }));
 
 vi.mock('../models/task-model', () => ({
-	countUsersByIds: countUsersByIdsMock,
+	countProjectMembersByUserIds: countProjectMembersByUserIdsMock,
 	createTaskAssignees: createTaskAssigneesMock,
 	createTaskRecord: createTaskRecordMock,
 	createTaskHistoryRecord: createTaskHistoryRecordMock,
@@ -146,7 +146,7 @@ describe('task-usecases', () => {
 			.spyOn(globalThis.crypto, 'randomUUID')
 			.mockReturnValueOnce('task-uuid');
 		findProjectByIdMock.mockResolvedValueOnce({ id: 'project-1' });
-		countUsersByIdsMock.mockResolvedValueOnce(1);
+		countProjectMembersByUserIdsMock.mockResolvedValueOnce(1);
 		nextTaskSortOrderMock.mockResolvedValueOnce(4);
 		createTaskRecordMock.mockResolvedValueOnce({ id: 'task-uuid' });
 		findTaskByIdOrThrowMock.mockResolvedValueOnce(
@@ -224,6 +224,23 @@ describe('task-usecases', () => {
 		randomUUIDMock.mockRestore();
 	});
 
+	it('createTaskUseCase should reject assignee outside project members', async () => {
+		findProjectByIdMock.mockResolvedValueOnce({ id: 'project-1' });
+		countProjectMembersByUserIdsMock.mockResolvedValueOnce(0);
+
+		await expect(
+			createTaskUseCase('project-1', {
+				title: '新規',
+				note: '',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				progress: 0,
+				assigneeIds: ['user-not-member'],
+				predecessorTaskId: null
+			})
+		).rejects.toBeInstanceOf(TaskModelValidationError);
+	});
+
 	it('updateTaskUseCase should return existing task for no-op update', async () => {
 		const existing = createTaskFixture();
 		findProjectByIdMock.mockResolvedValueOnce({ id: 'project-1' });
@@ -284,7 +301,7 @@ describe('task-usecases', () => {
 		});
 		findProjectByIdMock.mockResolvedValueOnce({ id: 'project-1' });
 		findTaskByIdInProjectMock.mockResolvedValueOnce(existing);
-		countUsersByIdsMock.mockResolvedValueOnce(1);
+		countProjectMembersByUserIdsMock.mockResolvedValueOnce(1);
 		updateTaskWhereUpdatedAtMock.mockResolvedValueOnce(1);
 		findTaskByIdOrThrowMock.mockResolvedValueOnce(updated);
 

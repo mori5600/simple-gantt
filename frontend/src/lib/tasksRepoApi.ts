@@ -186,6 +186,26 @@ export const apiTasksRepo: TasksRepo = {
 		}
 	},
 
+	async listProjectMembers(projectId: string): Promise<User[]> {
+		try {
+			const response = await apiClient.get(`/api/projects/${projectId}/members`);
+			return parseApiResponse(usersSchema, response.data);
+		} catch (error) {
+			throw new Error(toErrorMessage(error));
+		}
+	},
+
+	async setProjectMembers(projectId: string, userIds: string[]): Promise<User[]> {
+		try {
+			const response = await apiClient.put(`/api/projects/${projectId}/members`, {
+				userIds
+			});
+			return parseApiResponse(usersSchema, response.data);
+		} catch (error) {
+			throw new Error(toErrorMessage(error));
+		}
+	},
+
 	async listUsers(): Promise<User[]> {
 		try {
 			const response = await apiClient.get('/api/users');

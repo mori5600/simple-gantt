@@ -53,14 +53,16 @@ model Project {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
   tasks     Task[]
+  members   ProjectMember[]
 }
 
 model User {
-  id        String         @id
-  name      String
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @default(now()) @updatedAt
-  assignees TaskAssignee[]
+  id                 String          @id
+  name               String
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @default(now()) @updatedAt
+  assignees          TaskAssignee[]
+  projectMemberships ProjectMember[]
 }
 
 model TaskAssignee {
@@ -70,5 +72,15 @@ model TaskAssignee {
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@id([taskId, userId])
+  @@index([userId])
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
   @@index([userId])
 }

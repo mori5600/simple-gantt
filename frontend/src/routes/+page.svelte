@@ -30,6 +30,7 @@
 	import {
 		loadTaskFilters,
 		saveTaskFilters,
+		UNASSIGNED_ASSIGNEE,
 		type TaskFilters
 	} from '$lib/features/gantt/filterStorage';
 	import { loadSelectedProjectId, saveSelectedProjectId } from '$lib/features/gantt/projectStorage';
@@ -87,6 +88,7 @@
 	let tasks = $state<Task[]>([]);
 	let projects = $state<Project[]>([]);
 	let users = $state<User[]>([]);
+	let projectMembers = $state<User[]>([]);
 	let selectedProjectId = $state('');
 	let selectedTaskId = $state<string | null>(null);
 	let zoom = $state<ZoomLevel>('day');
@@ -174,6 +176,9 @@
 		const unsubscribeUsers = tasksStore.users.subscribe((nextUsers) => {
 			users = nextUsers;
 		});
+		const unsubscribeProjectMembers = tasksStore.projectMembers.subscribe((nextMembers) => {
+			projectMembers = nextMembers;
+		});
 		const syncPollIntervalMs = resolvePollingIntervalForScope({
 			scope: 'gantt',
 			defaultIntervalMs: DEFAULT_GANTT_SYNC_POLL_INTERVAL_MS,
@@ -225,6 +230,7 @@
 			unsubscribeTasks();
 			unsubscribeProjects();
 			unsubscribeUsers();
+			unsubscribeProjectMembers();
 		};
 	});
 
@@ -239,7 +245,7 @@
 		if (!isListColumnAuto) {
 			return;
 		}
-		listColumnWidths = computeAutoColumnWidths(orderedTasks, users);
+		listColumnWidths = computeAutoColumnWidths(orderedTasks, projectMembers);
 	});
 
 	$effect(() => {
@@ -255,6 +261,16 @@
 			return;
 		}
 		saveSelectedProjectId(localStorage, PROJECT_STORAGE_KEY, selectedProjectId);
+	});
+
+	$effect(() => {
+		const assigneeId = taskFilters.assignee.trim();
+		if (!assigneeId || assigneeId === UNASSIGNED_ASSIGNEE) {
+			return;
+		}
+		if (!projectMembers.some((user) => user.id === assigneeId)) {
+			taskFilters.assignee = '';
+		}
 	});
 
 	$effect(() => {
@@ -357,6 +373,17 @@
 		}
 	}
 
+	function mergeUsersById(baseUsers: readonly User[], extraUsers: readonly User[]): User[] {
+		const merged = new Map<string, User>();
+		for (const user of baseUsers) {
+			merged.set(user.id, user);
+		}
+		for (const user of extraUsers) {
+			merged.set(user.id, user);
+		}
+		return [...merged.values()];
+	}
+
 	async function executeTaskImport(params: {
 		projectId: string;
 		drafts: readonly TaskImportDraft[];
@@ -397,7 +424,7 @@
 			const rows = await parseTaskImportFile(file);
 			const plan = planTaskImportDrafts({
 				rows,
-				users,
+				users: projectMembers,
 				existingTaskIds: new Set(orderedTasks.map((task) => task.id)),
 				allowMissingAssignees: true
 			});
@@ -447,18 +474,49 @@
 		isImporting = true;
 
 		try {
-			const createResult = await createMissingUsersAction({
-				missingNames,
-				createUser: (input) => tasksRepo.createUser(input)
-			});
-			if (createResult.kind === 'error') {
-				actionError = createResult.message;
-				return;
+			const uniqueMissingNames = [...new Set(missingNames.map((name) => name.trim()).filter(Boolean))];
+			const existingUserByName = new Map(users.map((user) => [user.name.trim(), user] as const));
+			const knownUsersToAdd: User[] = [];
+			const namesToCreate: string[] = [];
+			for (const name of uniqueMissingNames) {
+				const existingUser = existingUserByName.get(name);
+				if (existingUser) {
+					knownUsersToAdd.push(existingUser);
+				} else {
+					namesToCreate.push(name);
+				}
 			}
+
+			let createdUsers: User[] = [];
+			if (namesToCreate.length > 0) {
+				const createResult = await createMissingUsersAction({
+					missingNames: namesToCreate,
+					createUser: (input) => tasksRepo.createUser(input)
+				});
+				if (createResult.kind === 'error') {
+					actionError = createResult.message;
+					return;
+				}
+				createdUsers = createResult.createdUsers;
+			}
+
+			const usersToAddAsMembers = mergeUsersById(knownUsersToAdd, createdUsers);
+			if (usersToAddAsMembers.length > 0) {
+				const nextProjectMemberIds = [
+					...new Set([
+						...projectMembers.map((member) => member.id),
+						...usersToAddAsMembers.map((member) => member.id)
+					])
+				];
+				await tasksRepo.setProjectMembers(projectId, nextProjectMemberIds);
+				await tasksStore.load(projectId);
+			}
+
+			const projectUsersForPlan = mergeUsersById(projectMembers, usersToAddAsMembers);
 
 			const plan = planTaskImportDrafts({
 				rows,
-				users: [...users, ...createResult.createdUsers],
+				users: projectUsersForPlan,
 				existingTaskIds: new Set(orderedTasks.map((task) => task.id)),
 				allowMissingAssignees: false
 			});
@@ -469,7 +527,7 @@
 			await executeTaskImport({
 				projectId,
 				drafts: plan.drafts,
-				createdUsersCount: createResult.createdCount
+				createdUsersCount: createdUsers.length
 			});
 		} catch (error) {
 			if (error instanceof TaskImportContractError) {
@@ -493,7 +551,7 @@
 
 	function autoFitListColumns(): void {
 		isListColumnAuto = true;
-		listColumnWidths = computeAutoColumnWidths(orderedTasks, users);
+		listColumnWidths = computeAutoColumnWidths(orderedTasks, projectMembers);
 	}
 
 	function selectTask(taskId: string): void {
@@ -735,7 +793,7 @@
 			onZoomChange={setZoom}
 		/>
 		<TaskFiltersBar
-			{users}
+			users={projectMembers}
 			query={taskFilters.query}
 			assignee={taskFilters.assignee}
 			status={taskFilters.status}
@@ -835,7 +893,7 @@
 		startDate={taskForm.startDate}
 		endDate={taskForm.endDate}
 		progress={taskForm.progress}
-		{users}
+		users={projectMembers}
 		tasks={orderedTasks}
 		currentTaskId={editingTaskId}
 		assigneeIds={taskForm.assigneeIds}

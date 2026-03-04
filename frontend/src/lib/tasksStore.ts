@@ -85,10 +85,12 @@ export function createTasksStore(repo: TasksRepo = tasksRepo) {
 	const { subscribe, set } = writable<Task[]>([]);
 	const projectsState = writable<Project[]>([]);
 	const usersState = writable<User[]>([]);
+	const projectMembersState = writable<User[]>([]);
 	let latestLoadRequestId = 0;
 	let currentTasks: Task[] = [];
 	let currentProjects: Project[] = [];
 	let currentUsers: User[] = [];
+	let currentProjectMembers: User[] = [];
 
 	function updateTasks(nextTasks: Task[]): void {
 		if (areTasksEqual(currentTasks, nextTasks)) {
@@ -114,6 +116,14 @@ export function createTasksStore(repo: TasksRepo = tasksRepo) {
 		usersState.set(nextUsers);
 	}
 
+	function updateProjectMembers(nextMembers: User[]): void {
+		if (areUsersEqual(currentProjectMembers, nextMembers)) {
+			return;
+		}
+		currentProjectMembers = nextMembers;
+		projectMembersState.set(nextMembers);
+	}
+
 	async function loadProjects(): Promise<Project[]> {
 		const projects = await repo.listProjects();
 		updateProjects(projects);
@@ -122,20 +132,25 @@ export function createTasksStore(repo: TasksRepo = tasksRepo) {
 
 	async function refresh(projectId: string): Promise<Task[]> {
 		const requestId = ++latestLoadRequestId;
-		const tasks = await repo.list(projectId);
+		const [tasks, projectMembers] = await Promise.all([
+			repo.list(projectId),
+			repo.listProjectMembers(projectId)
+		]);
 		if (requestId !== latestLoadRequestId) {
 			return tasks;
 		}
 		updateTasks(tasks);
+		updateProjectMembers(projectMembers);
 		return tasks;
 	}
 
 	async function load(projectId: string): Promise<Task[]> {
 		const requestId = ++latestLoadRequestId;
-		const [tasks, users, projects] = await Promise.all([
+		const [tasks, users, projects, projectMembers] = await Promise.all([
 			repo.list(projectId),
 			repo.listUsers(),
-			repo.listProjects()
+			repo.listProjects(),
+			repo.listProjectMembers(projectId)
 		]);
 		if (requestId !== latestLoadRequestId) {
 			return tasks;
@@ -143,6 +158,7 @@ export function createTasksStore(repo: TasksRepo = tasksRepo) {
 		updateTasks(tasks);
 		updateProjects(projects);
 		updateUsers(users);
+		updateProjectMembers(projectMembers);
 		return tasks;
 	}
 
@@ -153,6 +169,9 @@ export function createTasksStore(repo: TasksRepo = tasksRepo) {
 		} satisfies Readable<Project[]>,
 		users: {
 			subscribe: usersState.subscribe
+		} satisfies Readable<User[]>,
+		projectMembers: {
+			subscribe: projectMembersState.subscribe
 		} satisfies Readable<User[]>,
 		loadProjects,
 		refresh,

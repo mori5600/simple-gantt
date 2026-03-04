@@ -23,6 +23,7 @@ async function main(): Promise<void> {
 	const today = toIsoDate(new Date());
 
 	await prisma.taskAssignee.deleteMany();
+	await prisma.projectMember.deleteMany();
 	await prisma.task.deleteMany();
 	await prisma.project.deleteMany();
 	await prisma.user.deleteMany();
@@ -40,6 +41,16 @@ async function main(): Promise<void> {
 			{ id: 'user-sato', name: '佐藤' },
 			{ id: 'user-yamada', name: '山田' },
 			{ id: 'user-suzuki', name: '鈴木' }
+		]
+	});
+
+	await prisma.projectMember.createMany({
+		data: [
+			{ projectId: 'project-default', userId: 'user-ito' },
+			{ projectId: 'project-default', userId: 'user-sato' },
+			{ projectId: 'project-default', userId: 'user-yamada' },
+			{ projectId: 'project-mobile', userId: 'user-yamada' },
+			{ projectId: 'project-mobile', userId: 'user-suzuki' }
 		]
 	});
 

@@ -4,19 +4,22 @@ import { readJson } from '../lib/http';
 import {
 	createProjectUseCase,
 	deleteProjectUseCase,
+	listProjectMembersUseCase,
 	listProjectsUseCase,
 	listProjectSummariesUseCase,
 	ProjectModelValidationError,
 	ProjectOptimisticLockError,
 	reorderProjectsUseCase,
+	setProjectMembersUseCase,
 	updateProjectUseCase
 } from '../usecases/project-usecases';
 import {
 	createProjectSchema,
 	reorderProjectsSchema,
+	setProjectMembersSchema,
 	updateProjectSchema
 } from '../schemas/project-schemas';
-import { toApiProject, toApiProjectSummary } from '../serializers/serializers';
+import { toApiProject, toApiProjectSummary, toApiUser } from '../serializers/serializers';
 
 function handleProjectValidationError(error: unknown): never {
 	if (error instanceof ProjectModelValidationError) {
@@ -57,6 +60,20 @@ export async function createProjectController(c: Context) {
 	}
 }
 
+export async function listProjectMembersController(c: Context) {
+	const projectId = c.req.param('id');
+
+	try {
+		const members = await listProjectMembersUseCase(projectId);
+		if (!members) {
+			throw new HTTPException(404, { message: 'project not found' });
+		}
+		return c.json(members.map(toApiUser));
+	} catch (error) {
+		handleProjectValidationError(error);
+	}
+}
+
 export async function updateProjectController(c: Context) {
 	const projectId = c.req.param('id');
 	const payload = updateProjectSchema.parse(await readJson(c.req.raw));
@@ -92,6 +109,21 @@ export async function reorderProjectsController(c: Context) {
 	try {
 		const reordered = await reorderProjectsUseCase(payload.ids);
 		return c.json(reordered.map(toApiProject));
+	} catch (error) {
+		handleProjectValidationError(error);
+	}
+}
+
+export async function setProjectMembersController(c: Context) {
+	const projectId = c.req.param('id');
+	const payload = setProjectMembersSchema.parse(await readJson(c.req.raw));
+
+	try {
+		const members = await setProjectMembersUseCase(projectId, payload);
+		if (!members) {
+			throw new HTTPException(404, { message: 'project not found' });
+		}
+		return c.json(members.map(toApiUser));
 	} catch (error) {
 		handleProjectValidationError(error);
 	}

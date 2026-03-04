@@ -55,6 +55,8 @@ describe('tasksStore', () => {
 				.fn()
 				.mockResolvedValue([projectFixture('project-a'), projectFixture('project-b')]),
 			listUsers: vi.fn().mockResolvedValue([userFixture('user-1')]),
+			listProjectMembers: vi.fn().mockResolvedValue([userFixture('user-1')]),
+			setProjectMembers: vi.fn(),
 			list: vi.fn((projectId: string) => {
 				if (projectId === 'project-a') {
 					return deferredA.promise;

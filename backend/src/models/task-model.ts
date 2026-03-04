@@ -385,6 +385,25 @@ export async function countUsersByIds(userIds: string[], db: DbClient = prisma):
 	});
 }
 
+export async function countProjectMembersByUserIds(
+	projectId: string,
+	userIds: string[],
+	db: DbClient = prisma
+): Promise<number> {
+	if (userIds.length === 0) {
+		return 0;
+	}
+
+	return db.projectMember.count({
+		where: {
+			projectId,
+			userId: {
+				in: userIds
+			}
+		}
+	});
+}
+
 export async function nextTaskSortOrder(projectId: string, db: DbClient = prisma): Promise<number> {
 	const result = await db.task.aggregate({
 		where: {

@@ -41,8 +41,23 @@ export const reorderProjectsSchema = z
 		}
 	});
 
+export const setProjectMembersSchema = z
+	.object({
+		userIds: z.array(z.string().min(1))
+	})
+	.superRefine((value, ctx) => {
+		if (new Set(value.userIds).size !== value.userIds.length) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['userIds'],
+				message: 'userIds に重複があります。'
+			});
+		}
+	});
+
 export type Project = z.infer<typeof projectSchema>;
 export type ProjectSummary = z.infer<typeof projectSummarySchema>;
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 export type ReorderProjectsInput = z.infer<typeof reorderProjectsSchema>;
+export type SetProjectMembersInput = z.infer<typeof setProjectMembersSchema>;

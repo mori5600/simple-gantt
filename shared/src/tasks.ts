@@ -5,6 +5,7 @@ export {
 	projectSchema,
 	projectSummarySchema,
 	reorderProjectsSchema,
+	setProjectMembersSchema,
 	updateProjectSchema
 } from './tasks/projects';
 export type {
@@ -12,6 +13,7 @@ export type {
 	Project,
 	ProjectSummary,
 	ReorderProjectsInput,
+	SetProjectMembersInput,
 	UpdateProjectInput
 } from './tasks/projects';
 

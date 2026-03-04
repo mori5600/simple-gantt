@@ -1,7 +1,7 @@
 import type { CreateTaskInput, UpdateTaskInput } from '@simple-gantt/shared/tasks';
 import type { Prisma as PrismaType } from '@prisma/client';
 import {
-	countUsersByIds,
+	countProjectMembersByUserIds,
 	createTaskAssignees,
 	createTaskHistoryRecord,
 	createTaskRecord,
@@ -58,7 +58,7 @@ export async function createTaskUseCase(
 ): Promise<TaskWithAssignees> {
 	return prisma.$transaction(async (tx) => {
 		await assertProjectExists(projectId, tx);
-		await assertUsersExist(payload.assigneeIds, tx);
+		await assertAssigneesBelongToProject(projectId, payload.assigneeIds, tx);
 		await assertPredecessorConstraints(
 			{
 				projectId,
@@ -189,7 +189,7 @@ export async function updateTaskUseCase(
 		}
 
 		if (payload.assigneeIds !== undefined) {
-			await assertUsersExist(payload.assigneeIds, tx);
+			await assertAssigneesBelongToProject(projectId, payload.assigneeIds, tx);
 		}
 
 		await assertPredecessorConstraints(
@@ -385,14 +385,18 @@ function isSameIdList(left: string[], right: string[]): boolean {
 /**
  * 不正 userId の混入を task 更新時点で遮断し、担当者関連の整合性を守る。
  */
-async function assertUsersExist(userIds: string[], db: DbClient = prisma): Promise<void> {
+async function assertAssigneesBelongToProject(
+	projectId: string,
+	userIds: string[],
+	db: DbClient = prisma
+): Promise<void> {
 	if (userIds.length === 0) {
 		return;
 	}
 
-	const count = await countUsersByIds(userIds, db);
+	const count = await countProjectMembersByUserIds(projectId, userIds, db);
 	if (count !== userIds.length) {
-		throw new TaskModelValidationError('assigneeIds に存在しない user が含まれます。');
+		throw new TaskModelValidationError('assigneeIds にプロジェクト未参加の user が含まれます。');
 	}
 }
 

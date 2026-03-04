@@ -3,9 +3,11 @@ import { healthController } from '../controllers/health-controller';
 import {
 	createProjectController,
 	deleteProjectController,
+	listProjectMembersController,
 	listProjectsController,
 	listProjectSummariesController,
 	reorderProjectsController,
+	setProjectMembersController,
 	updateProjectController
 } from '../controllers/project-controller';
 import {
@@ -32,6 +34,8 @@ export function registerApiRoutes(app: Hono): void {
 	app.patch('/api/projects/:id', updateProjectController);
 	app.delete('/api/projects/:id', deleteProjectController);
 	app.post('/api/projects/reorder', reorderProjectsController);
+	app.get('/api/projects/:id/members', listProjectMembersController);
+	app.put('/api/projects/:id/members', setProjectMembersController);
 	app.get('/api/users', listUsersController);
 	app.get('/api/users/summary', listUserSummariesController);
 	app.post('/api/users', createUserController);

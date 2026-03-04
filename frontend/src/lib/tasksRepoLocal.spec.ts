@@ -26,6 +26,7 @@ describe('localTasksRepo summaries', () => {
 
 	it('summary counts should update after creating a task', async () => {
 		const project = await localTasksRepo.createProject({ name: 'summary-check' });
+		await localTasksRepo.setProjectMembers(project.id, ['user-ito', 'user-yamada']);
 
 		await localTasksRepo.create(project.id, {
 			title: 'count me',
@@ -43,6 +44,40 @@ describe('localTasksRepo summaries', () => {
 		expect(projectSummaries.find((summary) => summary.id === project.id)?.taskCount).toBe(1);
 		expect(userSummaries.find((summary) => summary.id === 'user-ito')?.taskCount).toBe(2);
 		expect(userSummaries.find((summary) => summary.id === 'user-yamada')?.taskCount).toBe(3);
+	});
+
+	it('listProjectMembers should return project-scoped users only', async () => {
+		const defaultMembers = await localTasksRepo.listProjectMembers('project-default');
+		const mobileMembers = await localTasksRepo.listProjectMembers('project-mobile');
+
+		expect(defaultMembers.map((user) => user.id)).toEqual(
+			expect.arrayContaining(['user-ito', 'user-sato', 'user-yamada'])
+		);
+		expect(defaultMembers.map((user) => user.id)).not.toContain('user-suzuki');
+		expect(mobileMembers.map((user) => user.id)).toEqual(
+			expect.arrayContaining(['user-yamada', 'user-suzuki'])
+		);
+		expect(mobileMembers.map((user) => user.id)).not.toContain('user-ito');
+	});
+
+	it('create should reject assignee outside project members', async () => {
+		await expect(
+			localTasksRepo.create('project-default', {
+				title: 'invalid assignee',
+				note: '',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				progress: 0,
+				assigneeIds: ['user-suzuki'],
+				predecessorTaskId: null
+			})
+		).rejects.toThrow('assigneeIds にプロジェクト未参加の user が含まれます。');
+	});
+
+	it('setProjectMembers should reject removing users who still have assignments', async () => {
+		await expect(localTasksRepo.setProjectMembers('project-default', ['user-sato'])).rejects.toThrow(
+			'担当タスクが存在するメンバーはプロジェクトから外せません。'
+		);
 	});
 
 	it('listTaskHistory should return created and updated entries', async () => {
