@@ -44,7 +44,7 @@ export function createApp(): Hono {
 				}
 				return origins[0] ?? '*';
 			},
-			allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+			allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 			allowHeaders: ['Content-Type']
 		})
 	);
