@@ -19,6 +19,8 @@ describe('adapter-static configuration', () => {
 			new URL('../../../docker/nginx/frontend-static.conf', import.meta.url)
 		);
 
+		expect(nginxSource).toMatch(/location\s+\/api\//);
+		expect(nginxSource).toMatch(/proxy_pass\s+http:\/\/backend:8787;/);
 		expect(nginxSource).toMatch(/try_files\s+\$uri\s+\$uri\/\s+\/200\.html;/);
 		expect(nginxSource).not.toMatch(/try_files\s+\$uri\s+\$uri\/\s+\/index\.html;/);
 	});

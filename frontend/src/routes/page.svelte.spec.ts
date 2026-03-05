@@ -32,8 +32,8 @@ describe('/+page.svelte', () => {
 	it('should render toolbar controls', async () => {
 		await renderPage();
 		await expect.element(page.getByRole('combobox', { name: 'Project' })).toBeInTheDocument();
-		await expect.element(page.getByRole('button', { name: 'Task 追加' })).toBeInTheDocument();
-		await expect.element(page.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: 'タスク追加' })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: '編集' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '取込' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '出力' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Day' })).toBeInTheDocument();
@@ -107,7 +107,7 @@ describe('/+page.svelte', () => {
 	it('should open and close create task modal', async () => {
 		await renderPage();
 
-		await page.getByRole('button', { name: 'Task 追加' }).click();
+		await page.getByRole('button', { name: 'タスク追加' }).click();
 		await expect.element(page.getByRole('dialog')).toBeInTheDocument();
 		await expect.element(page.getByRole('heading', { name: 'タスク追加' })).toBeInTheDocument();
 		const noteField = page.getByRole('textbox', { name: 'note' });
@@ -122,6 +122,6 @@ describe('/+page.svelte', () => {
 	it('should keep edit button enabled when task is selected', async () => {
 		await renderPage();
 
-		await expect.element(page.getByRole('button', { name: 'Edit' })).toBeEnabled();
+		await expect.element(page.getByRole('button', { name: '編集' })).toBeEnabled();
 	});
 });

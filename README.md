@@ -35,10 +35,9 @@ cp frontend/.env.example frontend/.env
 
 ## Dockerでの運用起動
 
-`compose.yaml` は運用向けに以下の4サービスで構成されています。
+`compose.yaml` は運用向けに以下の3サービスで構成されています。
 
-- `gateway` (nginx): 外部公開用の入口 (`APP_PORT`, デフォルト `8080`)
-- `frontend` (SvelteKit adapter-static の成果物を nginx で配信)
+- `gateway` (nginx): 外部公開用の入口 (`APP_PORT`, デフォルト `8080`)、静的ファイル配信と `/api` の reverse proxy を兼任
 - `backend` (Hono + Prisma + SQLite)
 - `db-migrate` (起動時の Prisma `db push`)
 
