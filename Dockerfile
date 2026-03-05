@@ -38,20 +38,51 @@ COPY shared/package.json shared/package.json
 
 RUN pnpm install --prod --frozen-lockfile --filter @simple-gantt/backend...
 
-FROM base AS runtime-backend
+FROM backend-deps-prod AS runtime-backend-prep
 
-ENV NODE_ENV=production
-
-COPY --from=backend-deps-prod /app/ ./
 COPY --from=backend-build /app/backend/dist backend/dist
 COPY --from=backend-build /app/shared/dist shared/dist
 COPY prisma/schema.prisma prisma/schema.prisma
 
-RUN pnpm --filter @simple-gantt/backend exec prisma generate --schema ../prisma/schema.prisma
+# COPY with wildcard from another stage may miss hidden ".prisma" internals.
+# Use a mounted copy so generated Prisma client files are preserved.
+RUN --mount=from=backend-build,source=/app/node_modules/.pnpm,target=/tmp/pnpm,ro \
+	set -eu; \
+	CLIENT_DIR="$(find /tmp/pnpm -maxdepth 1 -type d -name '@prisma+client@*' | head -n 1)"; \
+	CLIENT_BASENAME="$(basename "$CLIENT_DIR")"; \
+	rm -rf "/app/node_modules/.pnpm/$CLIENT_BASENAME"; \
+	cp -a "$CLIENT_DIR" "/app/node_modules/.pnpm/$CLIENT_BASENAME"; \
+	if [ -d /tmp/pnpm/node_modules/.prisma ]; then \
+		mkdir -p /app/node_modules/.pnpm/node_modules; \
+		rm -rf /app/node_modules/.pnpm/node_modules/.prisma; \
+		cp -a /tmp/pnpm/node_modules/.prisma /app/node_modules/.pnpm/node_modules/.prisma; \
+	fi
+
+# runtime does not need Prisma CLI package after client generation
+RUN rm -rf node_modules/.pnpm/prisma@* \
+	&& rm -f node_modules/.pnpm/node_modules/prisma \
+	&& rm -f backend/node_modules/prisma \
+	&& find node_modules/.pnpm -path '*/node_modules/prisma' -type l -delete \
+	&& true
 
 RUN mkdir -p /data /app/backend/logs
 
+FROM node:24-slim AS runtime-backend
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN apt update -y \
+	&& apt install -y --no-install-recommends openssl \
+	&& rm -rf /var/lib/apt/lists/*
+
+COPY --from=runtime-backend-prep /app/ ./
+
 CMD ["node", "--conditions=production", "backend/dist/index.js"]
+
+FROM backend-deps-prod AS runtime-backend-migrate
+
+COPY prisma/schema.prisma prisma/schema.prisma
 
 FROM base AS frontend-deps
 

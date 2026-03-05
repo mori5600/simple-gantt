@@ -3,7 +3,6 @@ name: simple-gantt
 x-backend-build: &backend-build
   context: .
   dockerfile: Dockerfile
-  target: runtime-backend
 
 x-frontend-build: &frontend-build
   context: .
@@ -15,8 +14,10 @@ x-frontend-build: &frontend-build
 
 services:
   db-migrate:
-    image: simple-gantt-backend:latest
-    build: *backend-build
+    image: simple-gantt-backend-migrate:latest
+    build:
+      <<: *backend-build
+      target: runtime-backend-migrate
     command:
       [
         'pnpm',
@@ -39,7 +40,9 @@ services:
 
   backend:
     image: simple-gantt-backend:latest
-    build: *backend-build
+    build:
+      <<: *backend-build
+      target: runtime-backend
     command: ['node', '--conditions=production', 'backend/dist/index.js']
     depends_on:
       db-migrate:

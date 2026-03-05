@@ -15,6 +15,16 @@
 		assigneeIds: [],
 		predecessorTaskId: ''
 	};
+	const HISTORY_CREATED_AT_FORMATTER = new Intl.DateTimeFormat('ja-JP', {
+		timeZone: 'Asia/Tokyo',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false
+	});
 
 	const taskId = $derived(page.params.id ?? '');
 	const projectId = $derived(page.url.searchParams.get('projectId')?.trim() ?? '');
@@ -164,6 +174,14 @@
 		} finally {
 			isSubmitting = false;
 		}
+	}
+
+	function formatHistoryCreatedAt(value: string): string {
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) {
+			return value;
+		}
+		return HISTORY_CREATED_AT_FORMATTER.format(date);
 	}
 </script>
 
@@ -338,7 +356,9 @@
 								<li class="rounded-lg border border-slate-200 bg-white px-3 py-2">
 									<div class="flex items-center justify-between gap-2">
 										<span class="text-sm font-semibold text-slate-800">{entry.action}</span>
-										<time class="text-xs text-slate-500">{entry.createdAt}</time>
+										<time class="text-xs text-slate-500" datetime={entry.createdAt}
+											>{formatHistoryCreatedAt(entry.createdAt)}</time
+										>
 									</div>
 									{#if entry.changedFields.length > 0}
 										<p class="mt-1 text-xs text-slate-500">

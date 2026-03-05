@@ -36,6 +36,10 @@ describe('/tasks/[id]/+page.svelte', () => {
 		await expect.element(page.getByRole('button', { name: '保存' })).toBeInTheDocument();
 		await expect.element(page.getByText('変更履歴')).toBeInTheDocument();
 		await expect.element(page.getByText('created')).toBeInTheDocument();
+		await expect.element(page.getByText(/\d{4}\/\d{2}\/\d{2}\s\d{2}:\d{2}:\d{2}/)).toBeInTheDocument();
+		await expect
+			.element(page.getByText(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/))
+			.not.toBeInTheDocument();
 	});
 
 	it('should update task and append history entry', async () => {
