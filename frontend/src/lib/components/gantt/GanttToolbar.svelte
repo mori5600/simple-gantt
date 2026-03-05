@@ -159,7 +159,7 @@
 						onclick={onCreate}
 						disabled={selectedProjectId.length === 0 || projects.length === 0}
 					>
-						Task 追加
+						タスク追加
 					</button>
 					<button
 						type="button"
@@ -167,7 +167,7 @@
 						onclick={onEdit}
 						disabled={!hasSelectedTask}
 					>
-						Edit
+						編集
 					</button>
 					<button
 						type="button"
@@ -175,7 +175,7 @@
 						onclick={onDelete}
 						disabled={!hasSelectedTask}
 					>
-						Delete
+						削除
 					</button>
 					<button
 						type="button"
