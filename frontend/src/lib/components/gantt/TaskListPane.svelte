@@ -57,10 +57,7 @@
 		if (names.length === 0) {
 			return '未割り当て';
 		}
-		if (names.length <= 2) {
-			return names.join(', ');
-		}
-		return `${names[0]}, ${names[1]} +${names.length - 2}`;
+		return names.join(', ');
 	}
 
 	function startResize(event: PointerEvent, columnIndex: number): void {
