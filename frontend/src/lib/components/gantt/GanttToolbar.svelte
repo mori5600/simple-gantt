@@ -135,16 +135,12 @@
 						</select>
 					</label>
 					<a
-						href={resolve('/projects')}
-						class="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+						href={resolve('/admin/projects')}
+						class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-slate-700 transition hover:bg-slate-100"
+						aria-label="管理"
+						title="管理"
 					>
-						プロジェクト管理
-					</a>
-					<a
-						href={resolve('/users')}
-						class="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-					>
-						ユーザー管理
+						<i class="bi bi-people text-base" aria-hidden="true"></i>
 					</a>
 					<a
 						href={resolve('/settings')}
