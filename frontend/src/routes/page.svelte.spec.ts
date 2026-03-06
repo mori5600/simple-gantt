@@ -1,7 +1,7 @@
 import { page } from 'vitest/browser';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { resetTaskCacheForTest } from '$lib/data/tasks/repo';
+import { resetTaskCacheForTest, tasksRepo } from '$lib/data/tasks/repo';
 import Page from './+page.svelte';
 
 const FILTERS_STORAGE_KEY = 'simple-gantt:task-filters:v1';
@@ -31,6 +31,10 @@ describe('/+page.svelte', () => {
 		if (typeof localStorage !== 'undefined') {
 			localStorage.clear();
 		}
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
 	});
 
 	it('should render toolbar controls', async () => {
@@ -166,5 +170,19 @@ describe('/+page.svelte', () => {
 		await renderPage();
 
 		await expect.element(page.getByRole('button', { name: '編集' })).toBeEnabled();
+	});
+
+	it('should show overdue summary and timeline title for overdue tasks', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-03-01T00:00:00.000Z'));
+		await tasksRepo.list('project-default');
+		vi.setSystemTime(new Date('2026-03-10T00:00:00.000Z'));
+
+		await renderPage();
+
+		await expect.element(page.getByText('遅延 1件')).toBeInTheDocument();
+		await expect
+			.element(page.getByTitle('UI実装 / 担当: 佐藤, 山田 / 遅延中', { exact: true }))
+			.toBeInTheDocument();
 	});
 });

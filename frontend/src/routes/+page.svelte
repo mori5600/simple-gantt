@@ -18,6 +18,7 @@
 		ensureSelectedTaskId,
 		filterTasksByFilters,
 		hasActiveTaskFilters,
+		isTaskOverdue,
 		indexTasksById,
 		orderTasksForDisplay,
 		type TaskFormInput
@@ -95,6 +96,9 @@
 	);
 	const hasActiveFilters = $derived.by(() => hasActiveTaskFilters(taskFilters));
 	const visibleTasks = $derived.by(() => filterTasksByFilters(orderedTasks, taskFilters));
+	const overdueCount = $derived.by(
+		() => visibleTasks.filter((task) => isTaskOverdue(task)).length
+	);
 
 	const selectedTask = $derived.by(() => {
 		if (!selectedTaskId) {
@@ -317,6 +321,7 @@
 			rangeEnd={taskFilters.rangeEnd}
 			total={orderedTasks.length}
 			matched={visibleTasks.length}
+			{overdueCount}
 			hasActive={hasActiveFilters}
 			onQueryChange={(value) => (taskFilters.query = value)}
 			onAssigneeChange={(value) => (taskFilters.assignee = value)}
@@ -349,6 +354,7 @@
 					{getDisplayStart}
 					{getDisplayEnd}
 					{getAssigneeNames}
+					{isTaskOverdue}
 					{hasDependencyViolation}
 					columnWidths={listColumnWidths}
 					onSelect={selectTask}
@@ -361,6 +367,7 @@
 					{selectedTaskId}
 					{zoom}
 					{getAssigneeSummary}
+					{isTaskOverdue}
 					{hasDependencyViolation}
 					onSelect={selectTask}
 					onEdit={openTaskEditPage}

@@ -269,6 +269,10 @@ export function toggleAssignee(assigneeIds: string[], userId: string): string[] 
 	return [...assigneeIds, userId];
 }
 
+export function isTaskOverdue(task: Task, todayIso: string = toIsoDate(new Date())): boolean {
+	return task.progress < 100 && task.endDate < todayIso;
+}
+
 export function hasDependencyViolation(task: Task, taskById: TaskLookup): boolean {
 	if (!task.predecessorTaskId) {
 		return false;

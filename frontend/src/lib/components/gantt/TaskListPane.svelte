@@ -19,6 +19,7 @@
 		getDisplayStart,
 		getDisplayEnd,
 		getAssigneeNames,
+		isTaskOverdue,
 		hasDependencyViolation,
 		columnWidths,
 		onSelect,
@@ -33,6 +34,7 @@
 		getDisplayStart: (task: Task) => string;
 		getDisplayEnd: (task: Task) => string;
 		getAssigneeNames: (task: Task) => string[];
+		isTaskOverdue: (task: Task) => boolean;
 		hasDependencyViolation: (task: Task) => boolean;
 		columnWidths: ListColumnWidths;
 		onSelect: (taskId: string) => void;
@@ -203,6 +205,7 @@
 	{:else}
 		{#each tasks as task (task.id)}
 			{@const isDependencyViolation = hasDependencyViolation(task)}
+			{@const isOverdue = isTaskOverdue(task)}
 			{@const assigneeNames = getAssigneeNames(task)}
 			<button
 				type="button"
@@ -227,6 +230,13 @@
 			>
 				<div class="flex min-w-0 items-center gap-2 border-r border-slate-200 px-3">
 					<span class="truncate font-semibold text-slate-900" title={task.title}>{task.title}</span>
+					{#if isOverdue}
+						<span
+							class="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+						>
+							遅延
+						</span>
+					{/if}
 					{#if isDependencyViolation}
 						<span
 							class="shrink-0 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700"

@@ -7,6 +7,7 @@ import {
 	filterTasksByFilters,
 	hasActiveTaskFilters,
 	hasDependencyViolation,
+	isTaskOverdue,
 	indexTasksById,
 	orderTasksForDisplay,
 	resolveTaskAssigneeNames,
@@ -159,6 +160,39 @@ describe('gantt state helpers', () => {
 		const taskIndex = indexTasksById(tasks);
 
 		expect(hasDependencyViolation(tasks[1], taskIndex)).toBe(false);
+	});
+
+	it('isTaskOverdue should only flag incomplete tasks after their end date', () => {
+		expect(
+			isTaskOverdue(
+				taskFixture({
+					id: 'task-overdue',
+					endDate: '2026-02-21',
+					progress: 10
+				}),
+				'2026-02-22'
+			)
+		).toBe(true);
+		expect(
+			isTaskOverdue(
+				taskFixture({
+					id: 'task-due-today',
+					endDate: '2026-02-21',
+					progress: 10
+				}),
+				'2026-02-21'
+			)
+		).toBe(false);
+		expect(
+			isTaskOverdue(
+				taskFixture({
+					id: 'task-complete',
+					endDate: '2026-02-21',
+					progress: 100
+				}),
+				'2026-02-22'
+			)
+		).toBe(false);
 	});
 
 	it('assignee/date/form helpers should provide display-safe values', () => {

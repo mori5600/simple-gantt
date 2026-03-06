@@ -11,6 +11,7 @@
 		rangeEnd,
 		total,
 		matched,
+		overdueCount,
 		hasActive,
 		onQueryChange,
 		onAssigneeChange,
@@ -27,6 +28,7 @@
 		rangeEnd: string;
 		total: number;
 		matched: number;
+		overdueCount: number;
 		hasActive: boolean;
 		onQueryChange: (value: string) => void;
 		onAssigneeChange: (value: string) => void;
@@ -131,7 +133,14 @@
 	</div>
 
 	<div class="flex items-center justify-between gap-3 px-3 pb-2 text-xs text-slate-500">
-		<span>{summaryText}</span>
+		<div class="flex items-center gap-2">
+			<span>{summaryText}</span>
+			{#if overdueCount > 0}
+				<span class="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">
+					遅延 {overdueCount}件
+				</span>
+			{/if}
+		</div>
 		<span class="hidden sm:inline">フィルタ条件は自動保存されます</span>
 	</div>
 </section>

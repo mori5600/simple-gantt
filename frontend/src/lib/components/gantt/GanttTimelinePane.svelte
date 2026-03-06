@@ -52,6 +52,7 @@
 		width: number;
 		right: number;
 		assigneeSummary: string;
+		overdue: boolean;
 		dependencyViolation: boolean;
 	};
 
@@ -66,6 +67,7 @@
 		selectedTaskId,
 		zoom,
 		getAssigneeSummary,
+		isTaskOverdue,
 		hasDependencyViolation,
 		onSelect,
 		onEdit,
@@ -77,6 +79,7 @@
 		selectedTaskId: string | null;
 		zoom: ZoomLevel;
 		getAssigneeSummary: (task: Task) => string;
+		isTaskOverdue: (task: Task) => boolean;
 		hasDependencyViolation: (task: Task) => boolean;
 		onSelect: (taskId: string) => void;
 		onEdit: (task: Task) => void;
@@ -256,6 +259,7 @@
 				width,
 				right: left + width,
 				assigneeSummary: getAssigneeSummary(task),
+				overdue: isTaskOverdue(task),
 				dependencyViolation: hasDependencyViolation(task)
 			};
 		}
@@ -313,15 +317,45 @@
 		return links;
 	});
 
-	function getTaskBarClass(taskId: string, violation: boolean): string {
-		if (taskId === selectedTaskId) {
-			return violation
-				? 'border-rose-500 bg-rose-100 text-rose-900 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]'
-				: 'border-amber-500 bg-sky-100 text-slate-900 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]';
+	function getTaskBarClass(taskId: string, violation: boolean, overdue: boolean): string {
+		if (violation) {
+			const base =
+				taskId === selectedTaskId
+					? 'border-rose-500 bg-rose-100 text-rose-900 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]'
+					: 'border-rose-400 bg-rose-50 text-rose-900';
+			return overdue ? `${base} ring-1 ring-amber-400/80` : base;
 		}
-		return violation
-			? 'border-rose-400 bg-rose-50 text-rose-900'
+
+		if (overdue) {
+			return taskId === selectedTaskId
+				? 'border-amber-500 bg-amber-100 text-amber-950 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]'
+				: 'border-amber-400 bg-amber-50 text-amber-900';
+		}
+
+		return taskId === selectedTaskId
+			? 'border-amber-500 bg-sky-100 text-slate-900 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]'
 			: 'border-sky-400 bg-sky-50 text-slate-800';
+	}
+
+	function getTaskProgressClass(violation: boolean, overdue: boolean): string {
+		if (violation) {
+			return 'bg-rose-500/30';
+		}
+		if (overdue) {
+			return 'bg-amber-500/35';
+		}
+		return 'bg-sky-500/35';
+	}
+
+	function getTaskTitle(
+		task: Task,
+		assigneeSummary: string,
+		violation: boolean,
+		overdue: boolean
+	): string {
+		return `${task.title} / 担当: ${assigneeSummary}${overdue ? ' / 遅延中' : ''}${
+			violation ? ' / 依存違反あり' : ''
+		}`;
 	}
 
 	function startTimelinePan(event: PointerEvent): void {
@@ -481,6 +515,7 @@
 						{@const assigneeSummary = taskGeometry?.assigneeSummary ?? getAssigneeSummary(task)}
 						{@const hasViolation =
 							taskGeometry?.dependencyViolation ?? hasDependencyViolation(task)}
+						{@const isOverdue = taskGeometry?.overdue ?? isTaskOverdue(task)}
 						<div
 							class={`relative h-14 border-b border-slate-200 ${
 								task.id === selectedTaskId ? 'bg-sky-50/70' : ''
@@ -488,18 +523,16 @@
 						>
 							<button
 								type="button"
-								class={`absolute top-3 z-20 h-8 overflow-hidden rounded-md border text-left ${getTaskBarClass(task.id, hasViolation)}`}
+								class={`absolute top-3 z-20 h-8 overflow-hidden rounded-md border text-left ${getTaskBarClass(task.id, hasViolation, isOverdue)}`}
 								data-no-pan="true"
 								style={`left: ${taskLeft}px; width: ${taskWidth}px;`}
-								title={`${task.title} / 担当: ${assigneeSummary}${
-									hasViolation ? ' / 依存違反あり' : ''
-								}`}
+								title={getTaskTitle(task, assigneeSummary, hasViolation, isOverdue)}
 								onclick={() => onSelect(task.id)}
 								ondblclick={() => onEdit(task)}
 								onpointerdown={(event) => beginTaskDrag(event, task, 'move')}
 							>
 								<span
-									class="absolute inset-y-0 left-0 bg-sky-500/35"
+									class={`absolute inset-y-0 left-0 ${getTaskProgressClass(hasViolation, isOverdue)}`}
 									style={`width: ${task.progress}%;`}
 								></span>
 								<span
