@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-	import { resolvePollIntervalMs, startVisibilityPolling } from '$lib/polling';
-	import { resolvePollingIntervalForScope } from '$lib/pollingSettings';
-	import { tasksRepo, type ProjectSummary, type User } from '$lib/tasksRepo';
+	import { resolvePollIntervalMs, startVisibilityPolling } from '$lib/shared/polling';
+	import { resolvePollingIntervalForScope } from '$lib/shared/pollingSettings';
+	import { tasksRepo, type ProjectSummary, type User } from '$lib/data/tasks/repo';
 
 	let { showBackLink = true } = $props<{ showBackLink?: boolean }>();
 	const DEFAULT_ADMIN_SYNC_POLL_INTERVAL_MS = resolvePollIntervalMs(
@@ -309,166 +309,163 @@
 	{/if}
 </header>
 
-		<section class="rounded-2xl border border-slate-300 bg-white p-4 shadow-sm">
-			<form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]" onsubmit={submitCreate}>
-				<label class="grid gap-1 text-sm font-semibold text-slate-700">
-					<span>新規プロジェクト名</span>
-					<input
-						type="text"
-						name="createProjectName"
-						class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
-						placeholder="例: Webサイト刷新"
-						value={createName}
-						oninput={(event) => (createName = (event.currentTarget as HTMLInputElement).value)}
-					/>
-				</label>
-				<div class="flex items-end">
-					<button
-						type="submit"
-						class="h-10 rounded-xl bg-sky-700 px-4 text-sm font-semibold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
-						disabled={!canCreate}
-					>
-						追加
-					</button>
-				</div>
-			</form>
-			{#if error}
-				<p class="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
-			{/if}
-			{#if success}
-				<p class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
-			{/if}
-		</section>
+<section class="rounded-2xl border border-slate-300 bg-white p-4 shadow-sm">
+	<form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]" onsubmit={submitCreate}>
+		<label class="grid gap-1 text-sm font-semibold text-slate-700">
+			<span>新規プロジェクト名</span>
+			<input
+				type="text"
+				name="createProjectName"
+				class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
+				placeholder="例: Webサイト刷新"
+				value={createName}
+				oninput={(event) => (createName = (event.currentTarget as HTMLInputElement).value)}
+			/>
+		</label>
+		<div class="flex items-end">
+			<button
+				type="submit"
+				class="h-10 rounded-xl bg-sky-700 px-4 text-sm font-semibold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
+				disabled={!canCreate}
+			>
+				追加
+			</button>
+		</div>
+	</form>
+	{#if error}
+		<p class="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
+	{/if}
+	{#if success}
+		<p class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
+	{/if}
+</section>
 
-		<section class="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
-			<div class="border-b border-slate-200 px-4 py-3">
-				<div class="flex flex-wrap items-center justify-between gap-3">
-					<p class="text-sm font-semibold text-slate-700">Projects</p>
-					<label class="flex min-w-56 items-center gap-2 text-sm text-slate-600">
-						<span class="font-semibold whitespace-nowrap text-slate-700">検索</span>
-						<input
-							type="search"
-							name="projectSearch"
-							class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
-							placeholder="プロジェクト名 / ID"
-							value={searchQuery}
-							oninput={(event) => (searchQuery = (event.currentTarget as HTMLInputElement).value)}
-							aria-label="プロジェクト検索"
-						/>
-					</label>
-				</div>
-			</div>
-			{#if isLoading}
-				<div class="px-4 py-6 text-sm text-slate-500">読み込み中...</div>
-			{:else if projects.length === 0}
-				<div class="px-4 py-6 text-sm text-slate-500">プロジェクトがありません。</div>
-			{:else if filteredProjects.length === 0}
-				<div class="px-4 py-6 text-sm text-slate-500">
-					検索条件に一致するプロジェクトがありません。
-				</div>
-			{:else}
-				<div class="overflow-x-auto">
-					<table class="min-w-full text-sm">
-						<thead class="bg-slate-50 text-left text-xs tracking-wide text-slate-500 uppercase">
-							<tr>
-								<th class="px-4 py-2">Name</th>
-								<th class="px-4 py-2 text-right">Tasks</th>
-								<th class="px-4 py-2 text-right">Actions</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each filteredProjects as project (project.id)}
-								<tr class="border-t border-slate-200">
-									<td class="px-4 py-2">
-										{#if editingProjectId === project.id}
-											<input
-												type="text"
-												name="editProjectName"
-												class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm ring-sky-500/40 transition outline-none focus:ring-2"
-												value={editingName}
-												oninput={(event) =>
-													(editingName = (event.currentTarget as HTMLInputElement).value)}
-											/>
-										{:else}
-											<span class="font-medium text-slate-800">{project.name}</span>
-										{/if}
-									</td>
-									<td class="px-4 py-2 text-right text-slate-600 tabular-nums">
-										{project.taskCount}
-									</td>
-									<td class="px-4 py-2">
-										<div class="flex flex-wrap items-center justify-end gap-2">
-											<button
-												type="button"
-												class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
-												onclick={() => void moveProject(project.id, 'up')}
-												disabled={findProjectIndex(project.id) === 0 || isSubmitting}
-												aria-label="move up"
-											>
-												↑
-											</button>
-											<button
-												type="button"
-												class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
-												onclick={() => void moveProject(project.id, 'down')}
-												disabled={findProjectIndex(project.id) === projects.length - 1 ||
-													isSubmitting}
-												aria-label="move down"
-											>
-												↓
-											</button>
-											{#if editingProjectId === project.id}
-												<button
-													type="button"
-													class="rounded-lg bg-sky-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
-													onclick={() => void submitEdit(project)}
-													disabled={editingName.trim().length === 0 || isSubmitting}
-												>
-													保存
-												</button>
-												<button
-													type="button"
-													class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-													onclick={cancelEdit}
-												>
-													取消
-												</button>
-											{:else}
-												<button
-													type="button"
-													class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
-													onclick={() => void beginManageMembers(project)}
-													disabled={isSubmitting}
-												>
-													メンバー
-												</button>
-												<button
-													type="button"
-													class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
-													onclick={() => beginEdit(project)}
-													disabled={isSubmitting}
-												>
-													編集
-												</button>
-												<button
-													type="button"
-													class="rounded-lg border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
-													onclick={() => beginDeleteProject(project)}
-													disabled={isSubmitting}
-													title="プロジェクトを削除"
-												>
-													削除
-												</button>
-											{/if}
-										</div>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			{/if}
-		</section>
+<section class="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
+	<div class="border-b border-slate-200 px-4 py-3">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<p class="text-sm font-semibold text-slate-700">Projects</p>
+			<label class="flex min-w-56 items-center gap-2 text-sm text-slate-600">
+				<span class="font-semibold whitespace-nowrap text-slate-700">検索</span>
+				<input
+					type="search"
+					name="projectSearch"
+					class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
+					placeholder="プロジェクト名 / ID"
+					value={searchQuery}
+					oninput={(event) => (searchQuery = (event.currentTarget as HTMLInputElement).value)}
+					aria-label="プロジェクト検索"
+				/>
+			</label>
+		</div>
+	</div>
+	{#if isLoading}
+		<div class="px-4 py-6 text-sm text-slate-500">読み込み中...</div>
+	{:else if projects.length === 0}
+		<div class="px-4 py-6 text-sm text-slate-500">プロジェクトがありません。</div>
+	{:else if filteredProjects.length === 0}
+		<div class="px-4 py-6 text-sm text-slate-500">検索条件に一致するプロジェクトがありません。</div>
+	{:else}
+		<div class="overflow-x-auto">
+			<table class="min-w-full text-sm">
+				<thead class="bg-slate-50 text-left text-xs tracking-wide text-slate-500 uppercase">
+					<tr>
+						<th class="px-4 py-2">Name</th>
+						<th class="px-4 py-2 text-right">Tasks</th>
+						<th class="px-4 py-2 text-right">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each filteredProjects as project (project.id)}
+						<tr class="border-t border-slate-200">
+							<td class="px-4 py-2">
+								{#if editingProjectId === project.id}
+									<input
+										type="text"
+										name="editProjectName"
+										class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm ring-sky-500/40 transition outline-none focus:ring-2"
+										value={editingName}
+										oninput={(event) =>
+											(editingName = (event.currentTarget as HTMLInputElement).value)}
+									/>
+								{:else}
+									<span class="font-medium text-slate-800">{project.name}</span>
+								{/if}
+							</td>
+							<td class="px-4 py-2 text-right text-slate-600 tabular-nums">
+								{project.taskCount}
+							</td>
+							<td class="px-4 py-2">
+								<div class="flex flex-wrap items-center justify-end gap-2">
+									<button
+										type="button"
+										class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+										onclick={() => void moveProject(project.id, 'up')}
+										disabled={findProjectIndex(project.id) === 0 || isSubmitting}
+										aria-label="move up"
+									>
+										↑
+									</button>
+									<button
+										type="button"
+										class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+										onclick={() => void moveProject(project.id, 'down')}
+										disabled={findProjectIndex(project.id) === projects.length - 1 || isSubmitting}
+										aria-label="move down"
+									>
+										↓
+									</button>
+									{#if editingProjectId === project.id}
+										<button
+											type="button"
+											class="rounded-lg bg-sky-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
+											onclick={() => void submitEdit(project)}
+											disabled={editingName.trim().length === 0 || isSubmitting}
+										>
+											保存
+										</button>
+										<button
+											type="button"
+											class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+											onclick={cancelEdit}
+										>
+											取消
+										</button>
+									{:else}
+										<button
+											type="button"
+											class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+											onclick={() => void beginManageMembers(project)}
+											disabled={isSubmitting}
+										>
+											メンバー
+										</button>
+										<button
+											type="button"
+											class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+											onclick={() => beginEdit(project)}
+											disabled={isSubmitting}
+										>
+											編集
+										</button>
+										<button
+											type="button"
+											class="rounded-lg border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
+											onclick={() => beginDeleteProject(project)}
+											disabled={isSubmitting}
+											title="プロジェクトを削除"
+										>
+											削除
+										</button>
+									{/if}
+								</div>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
+</section>
 
 {#if pendingDeleteProject}
 	<div
@@ -589,18 +586,24 @@
 			</p>
 
 			{#if isMembersLoading}
-				<div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+				<div
+					class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500"
+				>
 					読み込み中...
 				</div>
 			{:else if users.length === 0}
-				<div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+				<div
+					class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500"
+				>
 					ユーザーが存在しません。先に Users 画面でユーザーを作成してください。
 				</div>
 			{:else}
 				<div class="mt-3 max-h-72 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
 					<div class="grid gap-2 sm:grid-cols-2">
 						{#each users as user (user.id)}
-							<label class="flex items-center gap-2 rounded-lg bg-white px-2 py-1.5 text-sm text-slate-700">
+							<label
+								class="flex items-center gap-2 rounded-lg bg-white px-2 py-1.5 text-sm text-slate-700"
+							>
 								<input
 									type="checkbox"
 									name="projectMemberUserIds"
@@ -617,7 +620,9 @@
 			{/if}
 
 			{#if membersDialogError}
-				<p class="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{membersDialogError}</p>
+				<p class="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+					{membersDialogError}
+				</p>
 			{/if}
 
 			<div class="mt-4 flex justify-end gap-2">

@@ -4,7 +4,7 @@
 	import { onMount } from 'svelte';
 	import { toggleAssignee, toCreateTaskInput, validateTaskForm } from '$lib/features/gantt/state';
 	import type { TaskFormInput } from '$lib/features/gantt/state';
-	import { tasksRepo, type Task, type TaskHistoryEntry, type User } from '$lib/tasksRepo';
+	import { tasksRepo, type Task, type TaskHistoryEntry, type User } from '$lib/data/tasks/repo';
 
 	const EMPTY_TASK_FORM: TaskFormInput = {
 		title: '',

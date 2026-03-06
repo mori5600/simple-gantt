@@ -1,4 +1,4 @@
-import type { Task, User } from '$lib/tasksRepo';
+import type { Task, User } from '$lib/data/tasks/repo';
 import type { ListColumnWidths } from './types';
 
 export const LIST_COLUMN_MIN_WIDTHS: ListColumnWidths = [140, 120, 96, 96, 120];

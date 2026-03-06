@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Task, User } from '$lib/tasksRepo';
+	import type { Task, User } from '$lib/data/tasks/repo';
 
 	type ModalMode = 'create' | 'edit';
 
@@ -177,7 +177,7 @@
 						{:else}
 							{#each selectedUsers as user (user.id)}
 								<span
-									class="max-w-[96px] truncate rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-800"
+									class="max-w-24 truncate rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-800"
 								>
 									{user.name}
 								</span>

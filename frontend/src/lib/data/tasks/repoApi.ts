@@ -18,8 +18,8 @@ import type {
 	UpdateTaskInput,
 	User,
 	UserSummary
-} from '$lib/tasksRepo';
-import { normalizeClientEnvValue, readClientEnv } from '$lib/env';
+} from '$lib/data/tasks/repo';
+import { normalizeClientEnvValue, readClientEnv } from '$lib/shared/env';
 
 const apiBaseUrl = normalizeClientEnvValue(
 	readClientEnv('VITE_API_BASE_URL', 'PUBLIC_API_BASE_URL') ?? 'http://localhost:8787'

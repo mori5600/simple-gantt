@@ -5,7 +5,7 @@ describe('/admin/+page.ts', () => {
 	it('should redirect to /admin/projects', () => {
 		expect(() => load()).toThrowError(
 			expect.objectContaining({
-				status: 307,
+				status: 308,
 				location: '/admin/projects'
 			})
 		);

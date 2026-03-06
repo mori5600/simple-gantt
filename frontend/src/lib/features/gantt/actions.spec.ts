@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Project, Task } from '$lib/tasksRepo';
+import type { Project, Task } from '$lib/data/tasks/repo';
 import {
 	changeProjectSelectionAction,
 	createMissingUsersAction,

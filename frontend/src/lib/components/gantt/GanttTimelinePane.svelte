@@ -9,7 +9,7 @@
 	} from '$lib/features/gantt/date';
 	import { buildDependencyPath } from '$lib/features/gantt/dependencyLink';
 	import type { ZoomLevel } from '$lib/features/gantt/types';
-	import type { Task } from '$lib/tasksRepo';
+	import type { Task } from '$lib/data/tasks/repo';
 
 	type DragMode = 'move' | 'resize-start' | 'resize-end';
 	type TimelineCell = {
@@ -522,7 +522,7 @@
 
 				{#if dependencyLinks.length > 0}
 					<svg
-						class="pointer-events-none absolute inset-0 z-[15]"
+						class="pointer-events-none absolute inset-0 z-15"
 						width={timelineWidth}
 						height={rowsHeight}
 						aria-hidden="true"
@@ -546,7 +546,7 @@
 
 				{#if showTodayLine}
 					<div
-						class="pointer-events-none absolute inset-y-0 z-[18] w-0.5 bg-orange-500"
+						class="pointer-events-none absolute inset-y-0 z-18 w-0.5 bg-orange-500"
 						style={`left: ${todayOffset}px;`}
 					></div>
 				{/if}

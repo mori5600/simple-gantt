@@ -9,7 +9,7 @@
 		{ path: '/admin/users', label: 'ユーザー管理' }
 	];
 
-	function isActive(path: string): boolean {
+	function isActive(path: '/admin/projects' | '/admin/users'): boolean {
 		const pathname = page.url.pathname;
 		const target = resolve(path);
 		return pathname === target || pathname.startsWith(`${target}/`);

@@ -1,4 +1,4 @@
-import type { CreateTaskInput, Project, Task, UpdateTaskInput, User } from '$lib/tasksRepo';
+import type { CreateTaskInput, Project, Task, UpdateTaskInput, User } from '$lib/data/tasks/repo';
 import type { TaskImportDraft } from './import';
 export type { TaskImportDraft } from './import';
 

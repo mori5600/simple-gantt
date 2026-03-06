@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { localTasksRepo, resetLocalTaskCacheForTest } from './tasksRepoLocal';
+import { localTasksRepo, resetLocalTaskCacheForTest } from './repoLocal';
 
 describe('localTasksRepo summaries', () => {
 	beforeEach(() => {
@@ -75,9 +75,9 @@ describe('localTasksRepo summaries', () => {
 	});
 
 	it('setProjectMembers should reject removing users who still have assignments', async () => {
-		await expect(localTasksRepo.setProjectMembers('project-default', ['user-sato'])).rejects.toThrow(
-			'担当タスクが存在するメンバーはプロジェクトから外せません。'
-		);
+		await expect(
+			localTasksRepo.setProjectMembers('project-default', ['user-sato'])
+		).rejects.toThrow('担当タスクが存在するメンバーはプロジェクトから外せません。');
 	});
 
 	it('listTaskHistory should return created and updated entries', async () => {

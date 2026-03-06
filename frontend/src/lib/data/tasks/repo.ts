@@ -1,11 +1,11 @@
-import { apiTasksRepo } from '$lib/tasksRepoApi';
-import { normalizeClientEnvValue, readClientEnv } from '$lib/env';
+import { apiTasksRepo } from '$lib/data/tasks/repoApi';
+import { normalizeClientEnvValue, readClientEnv } from '$lib/shared/env';
 import {
 	localTasksRepo,
 	LOCAL_PROJECTS,
 	LOCAL_USERS,
 	resetLocalTaskCacheForTest
-} from '$lib/tasksRepoLocal';
+} from '$lib/data/tasks/repoLocal';
 import type {
 	CreateProjectInput,
 	CreateTaskInput,

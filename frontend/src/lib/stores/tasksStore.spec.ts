@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Project, Task, TasksRepo, User } from '$lib/tasksRepo';
+import type { Project, Task, TasksRepo, User } from '$lib/data/tasks/repo';
 import { createTasksStore } from './tasksStore';
 
 function createDeferred<T>() {

@@ -1,5 +1,5 @@
 import { createTaskSchema } from '@simple-gantt/shared/tasks';
-import type { CreateTaskInput, User } from '$lib/tasksRepo';
+import type { CreateTaskInput, User } from '$lib/data/tasks/repo';
 
 type TaskImportColumnKey =
 	| 'taskId'

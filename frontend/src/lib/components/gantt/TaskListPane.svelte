@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Task } from '$lib/tasksRepo';
+	import type { Task } from '$lib/data/tasks/repo';
 
 	type ListColumnWidths = [number, number, number, number, number];
 	type ResizeState = {

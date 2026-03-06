@@ -27,7 +27,7 @@ vi.mock('axios', () => {
 	};
 });
 
-import { apiTasksRepo } from './tasksRepoApi';
+import { apiTasksRepo } from './repoApi';
 
 describe('apiTasksRepo', () => {
 	beforeEach(() => {

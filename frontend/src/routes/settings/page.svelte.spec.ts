@@ -1,7 +1,7 @@
 import { page } from 'vitest/browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { POLLING_SETTINGS_STORAGE_KEY } from '$lib/pollingSettings';
+import { POLLING_SETTINGS_STORAGE_KEY } from '$lib/shared/pollingSettings';
 import Page from './+page.svelte';
 
 describe('/settings/+page.svelte', () => {

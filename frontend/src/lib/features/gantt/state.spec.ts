@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import type { Task } from '$lib/tasksRepo';
+import type { Task, User } from '$lib/data/tasks/repo';
 import {
+	buildAssigneeNamesByTaskId,
+	createTaskFormForCreate,
 	ensureSelectedTaskId,
 	filterTasksByFilters,
 	hasActiveTaskFilters,
 	hasDependencyViolation,
 	indexTasksById,
 	orderTasksForDisplay,
+	resolveTaskAssigneeNames,
+	resolveTaskAssigneeSummary,
+	resolveTaskDisplayEnd,
+	resolveTaskDisplayStart,
 	reorderTaskIds,
-	trimTaskDatePreviews
+	trimTaskDatePreviews,
+	withTaskDatePreview,
+	withoutTaskDatePreview
 } from './state';
 
 function taskFixture(partial: Partial<Task>): Task {
@@ -24,6 +32,15 @@ function taskFixture(partial: Partial<Task>): Task {
 		updatedAt: '2026-02-20T00:00:00.000Z',
 		assigneeIds: [],
 		predecessorTaskId: null,
+		...partial
+	};
+}
+
+function userFixture(partial: Partial<User> = {}): User {
+	return {
+		id: 'user-1',
+		name: '伊藤',
+		updatedAt: '2026-02-20T00:00:00.000Z',
 		...partial
 	};
 }
@@ -142,5 +159,37 @@ describe('gantt state helpers', () => {
 		const taskIndex = indexTasksById(tasks);
 
 		expect(hasDependencyViolation(tasks[1], taskIndex)).toBe(false);
+	});
+
+	it('assignee/date/form helpers should provide display-safe values', () => {
+		const tasks = [
+			taskFixture({ id: 'task-1', assigneeIds: ['user-1'] }),
+			taskFixture({ id: 'task-2', assigneeIds: [] })
+		];
+		const users = [userFixture()];
+		const namesByTaskId = buildAssigneeNamesByTaskId(tasks, users);
+
+		expect(resolveTaskAssigneeNames(namesByTaskId, 'task-1')).toEqual(['伊藤']);
+		expect(resolveTaskAssigneeSummary(namesByTaskId, 'task-2')).toBe('未割り当て');
+
+		const previews = withTaskDatePreview({}, 'task-1', '2026-03-01', '2026-03-05');
+		expect(resolveTaskDisplayStart(previews, tasks[0])).toBe('2026-03-01');
+		expect(resolveTaskDisplayEnd(previews, tasks[0])).toBe('2026-03-05');
+		expect(withoutTaskDatePreview(previews, 'task-1')).toEqual({});
+
+		const form = createTaskFormForCreate(
+			{
+				title: '',
+				note: '',
+				startDate: '',
+				endDate: '',
+				progress: 0,
+				assigneeIds: [],
+				predecessorTaskId: ''
+			},
+			new Date('2026-03-10T00:00:00.000Z')
+		);
+		expect(form.startDate).toBe('2026-03-10');
+		expect(form.endDate).toBe('2026-03-12');
 	});
 });

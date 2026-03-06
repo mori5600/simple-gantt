@@ -1,4 +1,4 @@
-import { normalizeClientEnvValue, readClientEnv } from '$lib/env';
+import { normalizeClientEnvValue, readClientEnv } from '$lib/shared/env';
 
 type PollingOptions = {
 	intervalMs: number;

@@ -12,7 +12,7 @@ import type {
 	UpdateUserInput,
 	User,
 	UserSummary
-} from '$lib/tasksRepo';
+} from '$lib/data/tasks/repo';
 
 const DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
 const LOCAL_INITIAL_UPDATED_AT = new Date().toISOString();
@@ -636,7 +636,8 @@ export const localTasksRepo: TasksRepo = {
 		const removedUserIds = [...currentMemberIdSet].filter((userId) => !nextMemberIdSet.has(userId));
 		const hasAssignedTask = ensureData().some(
 			(task) =>
-				task.projectId === projectId && task.assigneeIds.some((userId) => removedUserIds.includes(userId))
+				task.projectId === projectId &&
+				task.assigneeIds.some((userId) => removedUserIds.includes(userId))
 		);
 		if (hasAssignedTask) {
 			throw new Error('担当タスクが存在するメンバーはプロジェクトから外せません。');

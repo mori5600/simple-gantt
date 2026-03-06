@@ -8,7 +8,7 @@ import {
 	type Task,
 	type UpdateTaskInput,
 	type User
-} from '$lib/tasksRepo';
+} from '$lib/data/tasks/repo';
 
 function areStringArraysEqual(left: readonly string[], right: readonly string[]): boolean {
 	if (left.length !== right.length) {

@@ -1,11 +1,12 @@
 import { page } from 'vitest/browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { resetTaskCacheForTest } from '$lib/tasksRepo';
+import { resetTaskCacheForTest } from '$lib/data/tasks/repo';
 import Page from './+page.svelte';
 
-vi.mock('$lib/tasksRepo', async () => {
-	const actual = await vi.importActual<typeof import('$lib/tasksRepo')>('$lib/tasksRepo');
+vi.mock('$lib/data/tasks/repo', async () => {
+	const actual =
+		await vi.importActual<typeof import('$lib/data/tasks/repo')>('$lib/data/tasks/repo');
 	return {
 		...actual,
 		tasksRepoMode: 'local' as const,

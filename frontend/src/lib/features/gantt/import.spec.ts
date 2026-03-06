@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { User } from '$lib/tasksRepo';
+import type { User } from '$lib/data/tasks/repo';
 import {
 	planTaskImportDrafts,
 	TaskImportContractError,

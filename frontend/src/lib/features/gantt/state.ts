@@ -1,5 +1,6 @@
-import type { CreateTaskInput, Task } from '$lib/tasksRepo';
+import type { CreateTaskInput, Task, User } from '$lib/data/tasks/repo';
 import { UNASSIGNED_ASSIGNEE, type TaskFilters } from './filterStorage';
+import { addDays, toIsoDate } from './date';
 import type { TaskDateRange } from './types';
 
 export type TaskFormInput = {
@@ -101,6 +102,39 @@ export function indexTasksById(tasks: Task[]): ReadonlyMap<string, Task> {
 	return index;
 }
 
+export function buildAssigneeNamesByTaskId(
+	tasks: readonly Task[],
+	users: readonly User[]
+): Record<string, string[]> {
+	const assigneeNameById: Record<string, string> = {};
+	for (const user of users) {
+		assigneeNameById[user.id] = user.name;
+	}
+
+	const namesByTaskId: Record<string, string[]> = {};
+	for (const task of tasks) {
+		namesByTaskId[task.id] = task.assigneeIds.map(
+			(assigneeId) => assigneeNameById[assigneeId] ?? assigneeId
+		);
+	}
+	return namesByTaskId;
+}
+
+export function resolveTaskAssigneeNames(
+	namesByTaskId: Readonly<Record<string, string[]>>,
+	taskId: string
+): string[] {
+	return namesByTaskId[taskId] ?? [];
+}
+
+export function resolveTaskAssigneeSummary(
+	namesByTaskId: Readonly<Record<string, string[]>>,
+	taskId: string
+): string {
+	const names = resolveTaskAssigneeNames(namesByTaskId, taskId);
+	return names.length > 0 ? names.join(', ') : '未割り当て';
+}
+
 type TaskLookup =
 	| Readonly<Record<string, Task | undefined>>
 	| ReadonlyMap<string, Task | undefined>;
@@ -126,6 +160,47 @@ export function trimTaskDatePreviews(
 		}
 	}
 	return nextPreviews;
+}
+
+export function withTaskDatePreview(
+	taskDatePreviews: Record<string, TaskDateRange>,
+	taskId: string,
+	startDate: string,
+	endDate: string
+): Record<string, TaskDateRange> {
+	return {
+		...taskDatePreviews,
+		[taskId]: {
+			startDate,
+			endDate
+		}
+	};
+}
+
+export function withoutTaskDatePreview(
+	taskDatePreviews: Record<string, TaskDateRange>,
+	taskId: string
+): Record<string, TaskDateRange> {
+	if (!(taskId in taskDatePreviews)) {
+		return taskDatePreviews;
+	}
+	const nextPreviews = { ...taskDatePreviews };
+	delete nextPreviews[taskId];
+	return nextPreviews;
+}
+
+export function resolveTaskDisplayStart(
+	taskDatePreviews: Readonly<Record<string, TaskDateRange>>,
+	task: Task
+): string {
+	return taskDatePreviews[task.id]?.startDate ?? task.startDate;
+}
+
+export function resolveTaskDisplayEnd(
+	taskDatePreviews: Readonly<Record<string, TaskDateRange>>,
+	task: Task
+): string {
+	return taskDatePreviews[task.id]?.endDate ?? task.endDate;
 }
 
 export function reorderTaskIds(
@@ -172,6 +247,18 @@ export function toCreateTaskInput(form: TaskFormInput): CreateTaskInput {
 		progress: form.progress,
 		assigneeIds: [...form.assigneeIds],
 		predecessorTaskId: form.predecessorTaskId || null
+	};
+}
+
+export function createTaskFormForCreate(
+	baseForm: Readonly<TaskFormInput>,
+	now: Date = new Date()
+): TaskFormInput {
+	const startDate = toIsoDate(now);
+	return {
+		...baseForm,
+		startDate,
+		endDate: addDays(startDate, 2)
 	};
 }
 

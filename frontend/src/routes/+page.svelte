@@ -1,63 +1,33 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
+	import ActionFeedbackBanner from '$lib/components/gantt/ActionFeedbackBanner.svelte';
 	import GanttTimelinePane from '$lib/components/gantt/GanttTimelinePane.svelte';
 	import GanttToolbar from '$lib/components/gantt/GanttToolbar.svelte';
+	import PendingImportAlert from '$lib/components/gantt/PendingImportAlert.svelte';
 	import TaskFiltersBar from '$lib/components/gantt/TaskFiltersBar.svelte';
 	import TaskListPane from '$lib/components/gantt/TaskListPane.svelte';
 	import TaskModal from '$lib/components/gantt/TaskModal.svelte';
-	import { addDays, toIsoDate } from '$lib/features/gantt/date';
-	import { exportTasksAsCsv, exportTasksAsXlsx } from '$lib/features/gantt/export';
+	import { type ModalMode } from '$lib/features/gantt/actions';
+	import type { TaskImportRow } from '$lib/features/gantt/import';
+	import type { TaskFilters } from '$lib/features/gantt/filterStorage';
+	import { mountGanttPageLifecycle } from '$lib/features/gantt/lifecycle';
+	import { LIST_COLUMN_DEFAULT_WIDTHS } from '$lib/features/gantt/listColumns';
+	import { createGanttPageEffects } from '$lib/features/gantt/pageEffects';
 	import {
-		changeProjectSelectionAction,
-		createMissingUsersAction,
-		commitTaskDateRangeAction,
-		deleteTaskAction,
-		importTasksAction,
-		loadInitialProjectAction,
-		type ModalMode,
-		reorderTasksAction,
-		shouldEnableGanttSync,
-		submitTaskAction,
-		type TaskImportDraft
-	} from '$lib/features/gantt/actions';
-	import {
-		planTaskImportDrafts,
-		parseTaskImportFile,
-		TaskImportContractError,
-		type TaskImportRow
-	} from '$lib/features/gantt/import';
-	import {
-		loadTaskFilters,
-		saveTaskFilters,
-		UNASSIGNED_ASSIGNEE,
-		type TaskFilters
-	} from '$lib/features/gantt/filterStorage';
-	import { loadSelectedProjectId, saveSelectedProjectId } from '$lib/features/gantt/projectStorage';
-	import {
-		computeAutoColumnWidths,
-		LIST_COLUMN_DEFAULT_WIDTHS,
-		normalizeListColumnWidths
-	} from '$lib/features/gantt/listColumns';
-	import {
+		buildAssigneeNamesByTaskId,
 		ensureSelectedTaskId,
 		filterTasksByFilters,
 		hasActiveTaskFilters,
-		hasDependencyViolation as hasTaskDependencyViolation,
 		indexTasksById,
 		orderTasksForDisplay,
-		reorderTaskIds,
-		type TaskFormInput,
-		toCreateTaskInput,
-		toggleAssignee,
-		trimTaskDatePreviews,
-		validateTaskForm
+		type TaskFormInput
 	} from '$lib/features/gantt/state';
-	import { resolvePollIntervalMs, startVisibilityPolling } from '$lib/polling';
-	import { resolvePollingIntervalForScope } from '$lib/pollingSettings';
+	import { createGanttPageHandlers } from '$lib/features/gantt/pageHandlers';
+	import { createGanttPageViewBindings } from '$lib/features/gantt/pageViewBindings';
+	import { resolvePollIntervalMs } from '$lib/shared/polling';
 	import type { ListColumnWidths, TaskDateRange, ZoomLevel } from '$lib/features/gantt/types';
-	import { tasksStore } from '$lib/tasksStore';
-	import { tasksRepo, type Project, type Task, type User } from '$lib/tasksRepo';
+	import { tasksStore } from '$lib/stores/tasksStore';
+	import { tasksRepo, type Project, type Task, type User } from '$lib/data/tasks/repo';
 
 	const FILTERS_STORAGE_KEY = 'simple-gantt:task-filters:v1';
 	const PROJECT_STORAGE_KEY = 'simple-gantt:selected-project:v1';
@@ -116,23 +86,15 @@
 	let pendingImportFileName = $state('');
 	let pendingMissingAssigneeNames = $state<string[]>([]);
 
-	const orderedTasks = $derived.by(() => {
-		return orderTasksForDisplay(tasks);
-	});
-	const selectedProject = $derived.by(() => {
-		return projects.find((project) => project.id === selectedProjectId) ?? null;
-	});
-	const canExportTasks = $derived.by(() => {
-		return selectedProjectId.length > 0 && orderedTasks.length > 0 && !isExporting;
-	});
-
-	const hasActiveFilters = $derived.by(() => {
-		return hasActiveTaskFilters(taskFilters);
-	});
-
-	const visibleTasks = $derived.by(() => {
-		return filterTasksByFilters(orderedTasks, taskFilters);
-	});
+	const orderedTasks = $derived.by(() => orderTasksForDisplay(tasks));
+	const selectedProject = $derived.by(
+		() => projects.find((project) => project.id === selectedProjectId) ?? null
+	);
+	const canExportTasks = $derived.by(
+		() => selectedProjectId.length > 0 && orderedTasks.length > 0 && !isExporting
+	);
+	const hasActiveFilters = $derived.by(() => hasActiveTaskFilters(taskFilters));
+	const visibleTasks = $derived.by(() => filterTasksByFilters(orderedTasks, taskFilters));
 
 	const selectedTask = $derived.by(() => {
 		if (!selectedTaskId) {
@@ -140,480 +102,88 @@
 		}
 		return visibleTasks.find((task) => task.id === selectedTaskId) ?? null;
 	});
-	const taskById = $derived.by(() => {
-		return indexTasksById(orderedTasks);
-	});
-	const assigneeNamesByTaskId = $derived.by(() => {
-		const assigneeNameById: Record<string, string> = {};
-		for (const user of users) {
-			assigneeNameById[user.id] = user.name;
-		}
-		const namesByTaskId: Record<string, string[]> = {};
-		for (const task of orderedTasks) {
-			namesByTaskId[task.id] = task.assigneeIds.map(
-				(assigneeId) => assigneeNameById[assigneeId] ?? assigneeId
-			);
-		}
-		return namesByTaskId;
-	});
+	const taskById = $derived.by(() => indexTasksById(orderedTasks));
+	const assigneeNamesByTaskId = $derived.by(() => buildAssigneeNamesByTaskId(orderedTasks, users));
 
 	const taskListPaneWidth = $derived(listColumnWidths.reduce((total, width) => total + width, 0));
 
 	onMount(() => {
-		const storedFilters = loadTaskFilters(localStorage, FILTERS_STORAGE_KEY);
-		taskFilters = { ...storedFilters };
-		isFilterStorageReady = true;
-		const storedProjectId = loadSelectedProjectId(localStorage, PROJECT_STORAGE_KEY);
-		isProjectStorageReady = true;
-
-		const unsubscribeTasks = tasksStore.subscribe((nextTasks) => {
-			tasks = nextTasks;
-			selectedTaskId = ensureSelectedTaskId(nextTasks, selectedTaskId);
-		});
-		const unsubscribeProjects = tasksStore.projects.subscribe((nextProjects) => {
-			projects = nextProjects;
-		});
-		const unsubscribeUsers = tasksStore.users.subscribe((nextUsers) => {
-			users = nextUsers;
-		});
-		const unsubscribeProjectMembers = tasksStore.projectMembers.subscribe((nextMembers) => {
-			projectMembers = nextMembers;
-		});
-		const syncPollIntervalMs = resolvePollingIntervalForScope({
-			scope: 'gantt',
-			defaultIntervalMs: DEFAULT_GANTT_SYNC_POLL_INTERVAL_MS,
-			storage: typeof localStorage === 'undefined' ? undefined : localStorage
-		});
-		const syncPolling =
-			syncPollIntervalMs === null
-				? null
-				: startVisibilityPolling({
-						intervalMs: syncPollIntervalMs,
-						isEnabled: () =>
-							shouldEnableGanttSync({
-								selectedProjectId,
-								isSubmitting,
-								isInitialized: isInitialLoadCompleted
-							}),
-						onPoll: async () => {
-							const projectId = selectedProjectId;
-							if (!projectId) {
-								return;
-							}
-							await tasksStore.refresh(projectId);
-						},
-						onError: (error) => {
-							actionError = error instanceof Error ? error.message : '同期に失敗しました。';
-						}
-					});
-
-		void (async () => {
-			actionError = '';
-			const result = await loadInitialProjectAction({
-				store: tasksStore,
-				storedProjectId
-			});
-
-			if (result.kind === 'ok') {
-				selectedProjectId = result.projectId;
+		actionError = '';
+		return mountGanttPageLifecycle({
+			store: tasksStore,
+			refreshProject: (projectId) => tasksStore.refresh(projectId),
+			filtersStorageKey: FILTERS_STORAGE_KEY,
+			projectStorageKey: PROJECT_STORAGE_KEY,
+			defaultSyncPollIntervalMs: DEFAULT_GANTT_SYNC_POLL_INTERVAL_MS,
+			getSyncState: () => ({
+				selectedProjectId,
+				isSubmitting,
+				isInitialized: isInitialLoadCompleted
+			}),
+			onTaskFiltersRestored: (filters) => (taskFilters = { ...filters }),
+			onStorageReady: () => {
+				isFilterStorageReady = true;
+				isProjectStorageReady = true;
+			},
+			onTasks: (nextTasks) => {
+				tasks = nextTasks;
+				selectedTaskId = ensureSelectedTaskId(nextTasks, selectedTaskId);
+			},
+			onProjects: (nextProjects) => (projects = nextProjects),
+			onUsers: (nextUsers) => (users = nextUsers),
+			onProjectMembers: (nextMembers) => (projectMembers = nextMembers),
+			onSyncError: (message) => (actionError = message),
+			onInitializeSuccess: (projectId) => {
+				selectedProjectId = projectId;
 				isInitialLoadCompleted = true;
-				return;
+			},
+			onInitializeError: (message) => {
+				selectedProjectId = '';
+				selectedTaskId = null;
+				actionError = message;
+				isInitialLoadCompleted = true;
 			}
-
-			selectedProjectId = '';
-			selectedTaskId = null;
-			actionError = result.message;
-			isInitialLoadCompleted = true;
-		})();
-		return () => {
-			syncPolling?.stop();
-			unsubscribeTasks();
-			unsubscribeProjects();
-			unsubscribeUsers();
-			unsubscribeProjectMembers();
-		};
+		});
 	});
 
-	$effect(() => {
-		const nextSelectedTaskId = ensureSelectedTaskId(visibleTasks, selectedTaskId);
-		if (nextSelectedTaskId !== selectedTaskId) {
-			selectedTaskId = nextSelectedTaskId;
+	const pageEffects = createGanttPageEffects({
+		state: {
+			read: () => ({
+				visibleTasks,
+				selectedTaskId,
+				isListColumnAuto,
+				orderedTasks,
+				projectMembers,
+				taskFilters,
+				hasActiveFilters,
+				isFilterStorageReady,
+				isProjectStorageReady,
+				selectedProjectId,
+				taskDatePreviews
+			}),
+			setSelectedTaskId: (taskId) => (selectedTaskId = taskId),
+			setListColumnWidths: (widths) => (listColumnWidths = widths),
+			setTaskFilters: (filters) => (taskFilters = filters),
+			setTaskDatePreviews: (previews) => (taskDatePreviews = previews)
+		},
+		storage: {
+			getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
+			filtersStorageKey: FILTERS_STORAGE_KEY,
+			projectStorageKey: PROJECT_STORAGE_KEY
 		}
 	});
 
-	$effect(() => {
-		if (!isListColumnAuto) {
-			return;
-		}
-		listColumnWidths = computeAutoColumnWidths(orderedTasks, projectMembers);
-	});
-
-	$effect(() => {
-		if (!isFilterStorageReady || typeof localStorage === 'undefined') {
-			return;
-		}
-
-		saveTaskFilters(localStorage, FILTERS_STORAGE_KEY, taskFilters, hasActiveFilters);
-	});
-
-	$effect(() => {
-		if (!isProjectStorageReady || typeof localStorage === 'undefined') {
-			return;
-		}
-		saveSelectedProjectId(localStorage, PROJECT_STORAGE_KEY, selectedProjectId);
-	});
-
-	$effect(() => {
-		const assigneeId = taskFilters.assignee.trim();
-		if (!assigneeId || assigneeId === UNASSIGNED_ASSIGNEE) {
-			return;
-		}
-		if (!projectMembers.some((user) => user.id === assigneeId)) {
-			taskFilters.assignee = '';
-		}
-	});
-
-	$effect(() => {
-		const nextPreviews = trimTaskDatePreviews(taskDatePreviews, visibleTasks);
-		if (nextPreviews !== taskDatePreviews) {
-			taskDatePreviews = nextPreviews;
-		}
-	});
-
-	function setZoom(nextZoom: ZoomLevel): void {
-		zoom = nextZoom;
-	}
+	$effect(pageEffects.syncSelectedTask);
+	$effect(pageEffects.syncAutoListColumns);
+	$effect(pageEffects.persistTaskFilters);
+	$effect(pageEffects.persistSelectedProject);
+	$effect(pageEffects.sanitizeAssigneeFilter);
+	$effect(pageEffects.trimTaskDatePreviews);
 
 	function clearPendingImport(): void {
 		pendingImportRows = null;
 		pendingImportFileName = '';
 		pendingMissingAssigneeNames = [];
-	}
-
-	async function changeProject(projectId: string): Promise<void> {
-		const currentProjectId = selectedProjectId;
-		if (!projectId || projectId === currentProjectId) {
-			return;
-		}
-		actionError = '';
-		actionSuccess = '';
-
-		const result = await changeProjectSelectionAction({
-			store: tasksStore,
-			currentProjectId,
-			nextProjectId: projectId
-		});
-		if (result.kind === 'error') {
-			actionError = result.message;
-			selectedProjectId = result.projectId;
-			return;
-		}
-		if (result.kind === 'noop') {
-			return;
-		}
-
-		clearPendingImport();
-		selectedProjectId = result.projectId;
-		selectedTaskId = null;
-		taskDatePreviews = {};
-	}
-
-	async function runTaskAction(action: () => Promise<string | null>): Promise<boolean> {
-		actionError = '';
-		actionSuccess = '';
-		const error = await action();
-		if (!error) {
-			return true;
-		}
-		actionError = error;
-		return false;
-	}
-
-	async function exportTasks(format: 'csv' | 'xlsx'): Promise<void> {
-		const projectId = selectedProjectId;
-		if (!projectId) {
-			actionError = 'プロジェクトを選択してください。';
-			actionSuccess = '';
-			return;
-		}
-		if (orderedTasks.length === 0) {
-			actionError = '出力対象のタスクがありません。';
-			actionSuccess = '';
-			return;
-		}
-		if (typeof window === 'undefined') {
-			return;
-		}
-
-		actionError = '';
-		actionSuccess = '';
-		isExporting = true;
-		const projectName = selectedProject?.name ?? projectId;
-		try {
-			if (format === 'csv') {
-				exportTasksAsCsv({
-					projectId,
-					projectName,
-					tasks: orderedTasks,
-					users
-				});
-				return;
-			}
-
-			await exportTasksAsXlsx({
-				projectId,
-				projectName,
-				tasks: orderedTasks,
-				users
-			});
-		} catch (error) {
-			actionError = error instanceof Error ? error.message : 'ファイル出力に失敗しました。';
-		} finally {
-			isExporting = false;
-		}
-	}
-
-	function mergeUsersById(baseUsers: readonly User[], extraUsers: readonly User[]): User[] {
-		const merged = new Map<string, User>();
-		for (const user of baseUsers) {
-			merged.set(user.id, user);
-		}
-		for (const user of extraUsers) {
-			merged.set(user.id, user);
-		}
-		return [...merged.values()];
-	}
-
-	async function executeTaskImport(params: {
-		projectId: string;
-		drafts: readonly TaskImportDraft[];
-		createdUsersCount?: number;
-	}): Promise<void> {
-		const result = await importTasksAction({
-			store: tasksStore,
-			projectId: params.projectId,
-			drafts: params.drafts
-		});
-		if (result.kind === 'error') {
-			actionError = result.message;
-			return;
-		}
-		const createdUsersCount = params.createdUsersCount ?? 0;
-		if (createdUsersCount > 0) {
-			actionSuccess = `${result.importedCount} 件のタスクを取り込みました。${createdUsersCount} 名のユーザーを作成しました。`;
-		} else {
-			actionSuccess = `${result.importedCount} 件のタスクを取り込みました。`;
-		}
-		selectedTaskId = null;
-		clearPendingImport();
-	}
-
-	async function importTasks(file: File): Promise<void> {
-		const projectId = selectedProjectId;
-		if (!projectId) {
-			actionError = 'プロジェクトを選択してください。';
-			actionSuccess = '';
-			return;
-		}
-
-		actionError = '';
-		actionSuccess = '';
-		isImporting = true;
-
-		try {
-			const rows = await parseTaskImportFile(file);
-			const plan = planTaskImportDrafts({
-				rows,
-				users: projectMembers,
-				existingTaskIds: new Set(orderedTasks.map((task) => task.id)),
-				allowMissingAssignees: true
-			});
-			if (plan.kind === 'missing_assignees') {
-				pendingImportRows = rows;
-				pendingImportFileName = file.name;
-				pendingMissingAssigneeNames = plan.missingAssigneeNames;
-				actionSuccess = '';
-				return;
-			}
-			await executeTaskImport({
-				projectId,
-				drafts: plan.drafts
-			});
-		} catch (error) {
-			if (error instanceof TaskImportContractError) {
-				actionError = error.message;
-				return;
-			}
-			actionError = error instanceof Error ? error.message : 'ファイル取込に失敗しました。';
-		} finally {
-			isImporting = false;
-		}
-	}
-
-	function cancelPendingImport(): void {
-		clearPendingImport();
-		actionError = '';
-		actionSuccess = '取り込みをキャンセルしました。';
-	}
-
-	async function createMissingUsersAndContinue(): Promise<void> {
-		const rows = pendingImportRows;
-		const missingNames = pendingMissingAssigneeNames;
-		const projectId = selectedProjectId;
-		if (!rows || missingNames.length === 0) {
-			return;
-		}
-		if (!projectId) {
-			actionError = 'プロジェクトを選択してください。';
-			actionSuccess = '';
-			return;
-		}
-
-		actionError = '';
-		actionSuccess = '';
-		isImporting = true;
-
-		try {
-			const uniqueMissingNames = [...new Set(missingNames.map((name) => name.trim()).filter(Boolean))];
-			const existingUserByName = new Map(users.map((user) => [user.name.trim(), user] as const));
-			const knownUsersToAdd: User[] = [];
-			const namesToCreate: string[] = [];
-			for (const name of uniqueMissingNames) {
-				const existingUser = existingUserByName.get(name);
-				if (existingUser) {
-					knownUsersToAdd.push(existingUser);
-				} else {
-					namesToCreate.push(name);
-				}
-			}
-
-			let createdUsers: User[] = [];
-			if (namesToCreate.length > 0) {
-				const createResult = await createMissingUsersAction({
-					missingNames: namesToCreate,
-					createUser: (input) => tasksRepo.createUser(input)
-				});
-				if (createResult.kind === 'error') {
-					actionError = createResult.message;
-					return;
-				}
-				createdUsers = createResult.createdUsers;
-			}
-
-			const usersToAddAsMembers = mergeUsersById(knownUsersToAdd, createdUsers);
-			if (usersToAddAsMembers.length > 0) {
-				const nextProjectMemberIds = [
-					...new Set([
-						...projectMembers.map((member) => member.id),
-						...usersToAddAsMembers.map((member) => member.id)
-					])
-				];
-				await tasksRepo.setProjectMembers(projectId, nextProjectMemberIds);
-				await tasksStore.load(projectId);
-			}
-
-			const projectUsersForPlan = mergeUsersById(projectMembers, usersToAddAsMembers);
-
-			const plan = planTaskImportDrafts({
-				rows,
-				users: projectUsersForPlan,
-				existingTaskIds: new Set(orderedTasks.map((task) => task.id)),
-				allowMissingAssignees: false
-			});
-			if (plan.kind !== 'ready') {
-				throw new TaskImportContractError('担当者解決後の取込計画に失敗しました。');
-			}
-
-			await executeTaskImport({
-				projectId,
-				drafts: plan.drafts,
-				createdUsersCount: createdUsers.length
-			});
-		} catch (error) {
-			if (error instanceof TaskImportContractError) {
-				actionError = error.message;
-				return;
-			}
-			actionError = error instanceof Error ? error.message : 'ユーザー作成に失敗しました。';
-		} finally {
-			isImporting = false;
-		}
-	}
-
-	function resetFilters(): void {
-		taskFilters = { ...DEFAULT_TASK_FILTERS };
-	}
-
-	function setListColumnWidths(nextWidths: ListColumnWidths): void {
-		listColumnWidths = normalizeListColumnWidths(nextWidths);
-		isListColumnAuto = false;
-	}
-
-	function autoFitListColumns(): void {
-		isListColumnAuto = true;
-		listColumnWidths = computeAutoColumnWidths(orderedTasks, projectMembers);
-	}
-
-	function selectTask(taskId: string): void {
-		selectedTaskId = taskId;
-	}
-
-	async function reorderTasks(sourceTaskId: string, targetTaskId: string): Promise<void> {
-		const projectId = selectedProjectId;
-		if (!projectId) {
-			actionError = 'プロジェクトを選択してください。';
-			return;
-		}
-
-		const reorderedIds = reorderTaskIds(orderedTasks, sourceTaskId, targetTaskId);
-		if (!reorderedIds) {
-			return;
-		}
-		if (reorderedIds.length === 0) {
-			return;
-		}
-
-		const isSuccess = await runTaskAction(() =>
-			reorderTasksAction({
-				store: tasksStore,
-				projectId,
-				ids: reorderedIds
-			})
-		);
-		if (isSuccess) {
-			selectedTaskId = sourceTaskId;
-		}
-	}
-
-	function openCreateModal(): void {
-		if (!selectedProjectId) {
-			actionError = 'プロジェクトを選択してください。';
-			return;
-		}
-
-		const today = toIsoDate(new Date());
-		modalMode = 'create';
-		taskForm = {
-			...EMPTY_TASK_FORM,
-			startDate: today,
-			endDate: addDays(today, 2)
-		};
-		editingTaskId = null;
-		formError = '';
-		isModalOpen = true;
-	}
-
-	function toTaskEditHref(task: Task): string {
-		const path = resolve(`/tasks/${encodeURIComponent(task.id)}`);
-		return `${path}?projectId=${encodeURIComponent(task.projectId)}`;
-	}
-
-	function openTaskEditPage(task?: Task): void {
-		const target = task ?? selectedTask;
-		if (!target || typeof window === 'undefined') {
-			return;
-		}
-		window.location.href = toTaskEditHref(target);
 	}
 
 	function closeModal(): void {
@@ -623,152 +193,98 @@
 		editingTaskId = null;
 	}
 
-	async function submitTask(event: SubmitEvent): Promise<void> {
-		event.preventDefault();
-		const projectId = selectedProjectId;
-		if (!projectId) {
-			formError = 'プロジェクトを選択してください。';
-			return;
-		}
+	const {
+		setZoom,
+		resetFilters,
+		setListColumnWidths,
+		autoFitListColumns,
+		selectTask,
+		getAssigneeNames,
+		getAssigneeSummary,
+		hasDependencyViolation,
+		getDisplayStart,
+		getDisplayEnd
+	} = createGanttPageViewBindings({
+		state: {
+			read: () => ({
+				assigneeNamesByTaskId,
+				orderedTasks,
+				projectMembers,
+				taskDatePreviews,
+				taskById
+			}),
+			setIsListColumnAuto: (value) => (isListColumnAuto = value),
+			setListColumnWidths: (widths) => (listColumnWidths = widths),
+			setSelectedTaskId: (taskId) => (selectedTaskId = taskId),
+			setTaskFilters: (filters) => (taskFilters = filters),
+			setZoom: (nextZoom) => (zoom = nextZoom)
+		},
+		defaultTaskFilters: DEFAULT_TASK_FILTERS
+	});
 
-		const progress = Number(taskForm.progress);
-		const error = validateTaskForm({
-			title: taskForm.title,
-			note: taskForm.note,
-			startDate: taskForm.startDate,
-			endDate: taskForm.endDate,
-			progress,
-			assigneeIds: taskForm.assigneeIds,
-			predecessorTaskId: taskForm.predecessorTaskId
-		});
-		if (error) {
-			formError = error;
-			return;
-		}
-
-		const createInput = toCreateTaskInput({
-			title: taskForm.title,
-			note: taskForm.note,
-			startDate: taskForm.startDate,
-			endDate: taskForm.endDate,
-			progress,
-			assigneeIds: taskForm.assigneeIds,
-			predecessorTaskId: taskForm.predecessorTaskId
-		});
-
-		isSubmitting = true;
-		formError = '';
-		actionError = '';
-		actionSuccess = '';
-
-		try {
-			const result = await submitTaskAction({
-				store: tasksStore,
-				mode: modalMode,
-				projectId,
-				createInput,
+	const {
+		changeProject,
+		exportTasks,
+		importTasks,
+		cancelPendingImport,
+		createMissingUsersAndContinue,
+		reorderTasks,
+		openCreateModal,
+		openTaskEditPage,
+		submitTask,
+		deleteSelectedTask,
+		commitTaskDateRange,
+		toggleFormAssignee,
+		setTaskDatePreview,
+		clearTaskDatePreview
+	} = createGanttPageHandlers({
+		state: {
+			read: () => ({
 				editingTaskId,
-				sourceTask: editingTaskId ? (taskById.get(editingTaskId) ?? null) : null
-			});
-
-			if (result.kind === 'error') {
-				formError = result.message;
-				return;
-			}
-
-			selectedTaskId = result.selectedTaskId;
-			closeModal();
-		} finally {
-			isSubmitting = false;
+				modalMode,
+				orderedTasks,
+				pendingImportRows,
+				pendingMissingAssigneeNames,
+				projectMembers,
+				selectedProjectId,
+				selectedProjectName: selectedProject?.name ?? selectedProjectId,
+				selectedTask,
+				taskById,
+				taskDatePreviews,
+				taskForm,
+				users
+			}),
+			clearPendingImport,
+			closeModal,
+			setActionError: (message) => (actionError = message),
+			setActionSuccess: (message) => (actionSuccess = message),
+			setEditingTaskId: (taskId) => (editingTaskId = taskId),
+			setFormError: (message) => (formError = message),
+			setIsExporting: (value) => (isExporting = value),
+			setIsImporting: (value) => (isImporting = value),
+			setIsModalOpen: (value) => (isModalOpen = value),
+			setIsSubmitting: (value) => (isSubmitting = value),
+			setModalMode: (value) => (modalMode = value),
+			setPendingImportState: (value) => {
+				pendingImportRows = value.rows;
+				pendingImportFileName = value.fileName;
+				pendingMissingAssigneeNames = value.missingAssigneeNames;
+			},
+			setSelectedProjectId: (projectId) => (selectedProjectId = projectId),
+			setSelectedTaskId: (taskId) => (selectedTaskId = taskId),
+			setTaskDatePreviews: (previews) => (taskDatePreviews = previews),
+			setTaskForm: (value) => (taskForm = value)
+		},
+		deps: {
+			store: tasksStore,
+			createUser: (input) => tasksRepo.createUser(input),
+			setProjectMembers: (projectId, userIds) => tasksRepo.setProjectMembers(projectId, userIds),
+			isBrowser: () => typeof window !== 'undefined',
+			confirmDelete: (taskTitle) => window.confirm(`"${taskTitle}" を削除します。よろしいですか？`),
+			emptyTaskForm: EMPTY_TASK_FORM
 		}
-	}
+	});
 
-	async function deleteSelectedTask(): Promise<void> {
-		const projectId = selectedProjectId;
-		const target = selectedTask;
-		if (!projectId || !target || typeof window === 'undefined') {
-			return;
-		}
-		const confirmed = window.confirm(`"${target.title}" を削除します。よろしいですか？`);
-		if (!confirmed) {
-			return;
-		}
-		await runTaskAction(() =>
-			deleteTaskAction({
-				store: tasksStore,
-				projectId,
-				taskId: target.id
-			})
-		);
-	}
-
-	function toggleFormAssignee(userId: string): void {
-		taskForm.assigneeIds = toggleAssignee(taskForm.assigneeIds, userId);
-	}
-
-	function getAssigneeNames(task: Task): string[] {
-		return assigneeNamesByTaskId[task.id] ?? [];
-	}
-
-	function getAssigneeSummary(task: Task): string {
-		const names = getAssigneeNames(task);
-		return names.length > 0 ? names.join(', ') : '未割り当て';
-	}
-
-	function hasDependencyViolation(task: Task): boolean {
-		return hasTaskDependencyViolation(task, taskById);
-	}
-
-	function setTaskDatePreview(taskId: string, startDate: string, endDate: string): void {
-		taskDatePreviews = {
-			...taskDatePreviews,
-			[taskId]: { startDate, endDate }
-		};
-	}
-
-	function clearTaskDatePreview(taskId: string): void {
-		if (!(taskId in taskDatePreviews)) {
-			return;
-		}
-		const nextPreviews = { ...taskDatePreviews };
-		delete nextPreviews[taskId];
-		taskDatePreviews = nextPreviews;
-	}
-
-	function getDisplayStart(task: Task): string {
-		return taskDatePreviews[task.id]?.startDate ?? task.startDate;
-	}
-
-	function getDisplayEnd(task: Task): string {
-		return taskDatePreviews[task.id]?.endDate ?? task.endDate;
-	}
-
-	async function commitTaskDateRange(
-		taskId: string,
-		startDate: string,
-		endDate: string
-	): Promise<void> {
-		const projectId = selectedProjectId;
-		if (!projectId) {
-			actionError = 'プロジェクトを選択してください。';
-			return;
-		}
-		const sourceTask = taskById.get(taskId);
-		if (!sourceTask) {
-			return;
-		}
-
-		await runTaskAction(() =>
-			commitTaskDateRangeAction({
-				store: tasksStore,
-				projectId,
-				taskId,
-				startDate: startDate,
-				endDate: endDate,
-				updatedAt: sourceTask.updatedAt
-			})
-		);
-	}
 </script>
 
 <div class="h-screen overflow-hidden bg-slate-100 text-slate-800 select-none">
@@ -809,44 +325,15 @@
 			onRangeEndChange={(value) => (taskFilters.rangeEnd = value)}
 			onReset={resetFilters}
 		/>
-		{#if actionError}
-			<div class="border-y border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
-				{actionError}
-			</div>
-		{/if}
-		{#if actionSuccess}
-			<div class="border-y border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
-				{actionSuccess}
-			</div>
-		{/if}
+		<ActionFeedbackBanner {actionError} {actionSuccess} />
 		{#if pendingMissingAssigneeNames.length > 0}
-			<div class="border-y border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-				<p class="font-semibold">
-					未登録担当者が見つかりました ({pendingMissingAssigneeNames.length} 名)
-				</p>
-				<p class="mt-1">
-					{pendingImportFileName || '取込ファイル'} に未登録担当者が含まれています。ユーザーを作成して続行しますか？
-				</p>
-				<p class="mt-1 break-words">{pendingMissingAssigneeNames.join(', ')}</p>
-				<div class="mt-3 flex flex-wrap gap-2">
-					<button
-						type="button"
-						class="rounded-lg bg-amber-700 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-45"
-						onclick={() => void createMissingUsersAndContinue()}
-						disabled={isImporting}
-					>
-						不足ユーザーを作成して続行
-					</button>
-					<button
-						type="button"
-						class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-45"
-						onclick={cancelPendingImport}
-						disabled={isImporting}
-					>
-						キャンセル
-					</button>
-				</div>
-			</div>
+			<PendingImportAlert
+				fileName={pendingImportFileName}
+				missingAssigneeNames={pendingMissingAssigneeNames}
+				{isImporting}
+				onContinue={() => void createMissingUsersAndContinue()}
+				onCancel={cancelPendingImport}
+			/>
 		{/if}
 
 		<main class="min-h-0 flex-1 overflow-auto">

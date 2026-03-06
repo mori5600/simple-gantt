@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import type { ZoomLevel } from '$lib/features/gantt/types';
-	import type { Project } from '$lib/tasksRepo';
+	import type { Project } from '$lib/data/tasks/repo';
 
 	type ExportFormat = 'csv' | 'xlsx';
 

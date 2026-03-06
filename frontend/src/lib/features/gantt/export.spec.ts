@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Task, User } from '$lib/tasksRepo';
+import type { Task, User } from '$lib/data/tasks/repo';
 import {
 	buildTaskExportFileBaseName,
 	toTaskExportCsv,

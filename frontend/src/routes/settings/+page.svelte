@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-	import { resolvePollIntervalMs } from '$lib/polling';
+	import { resolvePollIntervalMs } from '$lib/shared/polling';
 	import {
 		clearPollingSettings,
 		loadPollingSettings,
 		POLLING_INTERVAL_OPTIONS,
 		savePollingSettings
-	} from '$lib/pollingSettings';
+	} from '$lib/shared/pollingSettings';
 
 	const DEFAULT_GANTT_SYNC_POLL_INTERVAL_MS = resolvePollIntervalMs(
 		15_000,

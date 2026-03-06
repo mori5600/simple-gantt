@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { TaskCompletionFilter } from '$lib/features/gantt/types';
-	import type { User } from '$lib/tasksRepo';
+	import type { User } from '$lib/data/tasks/repo';
 
 	let {
 		users,
@@ -118,7 +118,7 @@
 			/>
 		</label>
 
-		<div class="flex items-center gap-2 sm:pb-[2px]">
+		<div class="flex items-center gap-2 sm:pb-0.5">
 			<button
 				type="button"
 				class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"

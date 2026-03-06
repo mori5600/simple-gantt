@@ -322,7 +322,9 @@ describe('project-usecases', () => {
 	it('setProjectMembersUseCase should return null when project is missing', async () => {
 		findProjectByIdMock.mockResolvedValueOnce(null);
 
-		await expect(setProjectMembersUseCase('project-missing', { userIds: ['user-1'] })).resolves.toBeNull();
+		await expect(
+			setProjectMembersUseCase('project-missing', { userIds: ['user-1'] })
+		).resolves.toBeNull();
 		expect(replaceProjectMembersMock).not.toHaveBeenCalled();
 	});
 
@@ -335,9 +337,9 @@ describe('project-usecases', () => {
 		});
 		countUsersByIdsMock.mockResolvedValueOnce(0);
 
-		await expect(setProjectMembersUseCase('project-1', { userIds: ['user-1'] })).rejects.toBeInstanceOf(
-			ProjectModelValidationError
-		);
+		await expect(
+			setProjectMembersUseCase('project-1', { userIds: ['user-1'] })
+		).rejects.toBeInstanceOf(ProjectModelValidationError);
 		expect(replaceProjectMembersMock).not.toHaveBeenCalled();
 	});
 
@@ -383,7 +385,11 @@ describe('project-usecases', () => {
 
 		const actual = await setProjectMembersUseCase('project-1', { userIds: ['user-1', 'user-2'] });
 
-		expect(replaceProjectMembersMock).toHaveBeenCalledWith('project-1', ['user-1', 'user-2'], txMock);
+		expect(replaceProjectMembersMock).toHaveBeenCalledWith(
+			'project-1',
+			['user-1', 'user-2'],
+			txMock
+		);
 		expect(actual).toEqual([
 			{
 				id: 'user-1',

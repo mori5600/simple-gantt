@@ -1,4 +1,4 @@
-import type { Task, User } from '$lib/tasksRepo';
+import type { Task, User } from '$lib/data/tasks/repo';
 
 type ExportCellValue = string | number;
 

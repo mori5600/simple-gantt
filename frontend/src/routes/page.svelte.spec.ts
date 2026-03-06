@@ -1,11 +1,15 @@
 import { page } from 'vitest/browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { resetTaskCacheForTest } from '$lib/tasksRepo';
+import { resetTaskCacheForTest } from '$lib/data/tasks/repo';
 import Page from './+page.svelte';
 
-vi.mock('$lib/tasksRepo', async () => {
-	const actual = await vi.importActual<typeof import('$lib/tasksRepo')>('$lib/tasksRepo');
+const FILTERS_STORAGE_KEY = 'simple-gantt:task-filters:v1';
+const PROJECT_STORAGE_KEY = 'simple-gantt:selected-project:v1';
+
+vi.mock('$lib/data/tasks/repo', async () => {
+	const actual =
+		await vi.importActual<typeof import('$lib/data/tasks/repo')>('$lib/data/tasks/repo');
 	return {
 		...actual,
 		tasksRepoMode: 'local' as const,
@@ -63,6 +67,18 @@ describe('/+page.svelte', () => {
 		await expect.element(page.getByTitle('要件確認', { exact: true })).not.toBeInTheDocument();
 	});
 
+	it('should restore selected project from localStorage on first render', async () => {
+		localStorage.setItem(PROJECT_STORAGE_KEY, 'project-mobile');
+
+		render(Page);
+
+		await expect.element(page.getByTitle('API接続', { exact: true })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('combobox', { name: 'Project' }))
+			.toHaveValue('project-mobile');
+		await expect.element(page.getByTitle('要件確認', { exact: true })).not.toBeInTheDocument();
+	});
+
 	it('should toggle zoom selection state', async () => {
 		await renderPage();
 
@@ -102,6 +118,33 @@ describe('/+page.svelte', () => {
 		await expect.element(searchInput).toHaveValue('');
 		await expect.element(page.getByText('2 / 2 tasks')).toBeInTheDocument();
 		await expect.element(resetButton).toBeDisabled();
+	});
+
+	it('should persist active filters and clear storage when filters are reset', async () => {
+		await renderPage();
+
+		const searchInput = page.getByRole('searchbox', { name: 'Search' });
+		const resetButton = page.getByRole('button', { name: 'リセット' });
+
+		await searchInput.fill('要件');
+
+		await vi.waitFor(() => {
+			const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
+			expect(stored).not.toBeNull();
+			expect(JSON.parse(stored as string)).toEqual({
+				query: '要件',
+				assignee: '',
+				status: 'all',
+				rangeStart: '',
+				rangeEnd: ''
+			});
+		});
+
+		await resetButton.click();
+		await expect.element(searchInput).toHaveValue('');
+		await vi.waitFor(() => {
+			expect(localStorage.getItem(FILTERS_STORAGE_KEY)).toBeNull();
+		});
 	});
 
 	it('should open and close create task modal', async () => {

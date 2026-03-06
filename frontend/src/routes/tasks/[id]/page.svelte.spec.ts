@@ -1,7 +1,7 @@
 import { page } from 'vitest/browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { resetTaskCacheForTest } from '$lib/tasksRepo';
+import { resetTaskCacheForTest } from '$lib/data/tasks/repo';
 import TaskEditPage from './+page.svelte';
 
 const { mockedPage } = vi.hoisted(() => ({
@@ -15,8 +15,9 @@ vi.mock('$app/state', () => ({
 	page: mockedPage
 }));
 
-vi.mock('$lib/tasksRepo', async () => {
-	const actual = await vi.importActual<typeof import('$lib/tasksRepo')>('$lib/tasksRepo');
+vi.mock('$lib/data/tasks/repo', async () => {
+	const actual =
+		await vi.importActual<typeof import('$lib/data/tasks/repo')>('$lib/data/tasks/repo');
 	return {
 		...actual,
 		tasksRepoMode: 'local' as const,
@@ -36,7 +37,9 @@ describe('/tasks/[id]/+page.svelte', () => {
 		await expect.element(page.getByRole('button', { name: '保存' })).toBeInTheDocument();
 		await expect.element(page.getByText('変更履歴')).toBeInTheDocument();
 		await expect.element(page.getByText('created')).toBeInTheDocument();
-		await expect.element(page.getByText(/\d{4}\/\d{2}\/\d{2}\s\d{2}:\d{2}:\d{2}/)).toBeInTheDocument();
+		await expect
+			.element(page.getByText(/\d{4}\/\d{2}\/\d{2}\s\d{2}:\d{2}:\d{2}/))
+			.toBeInTheDocument();
 		await expect
 			.element(page.getByText(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/))
 			.not.toBeInTheDocument();
