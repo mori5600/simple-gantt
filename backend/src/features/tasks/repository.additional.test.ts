@@ -186,23 +186,19 @@ describe('tasks repository additional coverage', () => {
 	});
 
 	it('listTaskHistoryByTaskIdInProject should return empty arrays when delegate is missing', async () => {
-		await expect(listTaskHistoryByTaskIdInProject('project-1', 'task-1', {} as never)).resolves.toEqual(
-			[]
-		);
+		await expect(
+			listTaskHistoryByTaskIdInProject('project-1', 'task-1', {} as never)
+		).resolves.toEqual([]);
 	});
 
 	it('listTaskHistoryByTaskIdInProject should ignore invalid delegates without callable methods', async () => {
 		await expect(
-			listTaskHistoryByTaskIdInProject(
-				'project-1',
-				'task-1',
-				{
-					taskHistory: {
-						create: 'invalid',
-						findMany: vi.fn()
-					}
-				} as never
-			)
+			listTaskHistoryByTaskIdInProject('project-1', 'task-1', {
+				taskHistory: {
+					create: 'invalid',
+					findMany: vi.fn()
+				}
+			} as never)
 		).resolves.toEqual([]);
 	});
 
@@ -232,7 +228,9 @@ describe('tasks repository additional coverage', () => {
 			}
 		};
 
-		await expect(listTaskHistoryByTaskIdInProject('project-1', 'task-1', db as never)).resolves.toEqual([
+		await expect(
+			listTaskHistoryByTaskIdInProject('project-1', 'task-1', db as never)
+		).resolves.toEqual([
 			{
 				id: 'history-1',
 				taskId: 'task-1',
@@ -266,9 +264,9 @@ describe('tasks repository additional coverage', () => {
 			}
 		};
 
-		await expect(listTaskHistoryByTaskIdInProject('project-1', 'task-1', db as never)).resolves.toEqual(
-			[]
-		);
+		await expect(
+			listTaskHistoryByTaskIdInProject('project-1', 'task-1', db as never)
+		).resolves.toEqual([]);
 		expect(loggerMock.warn).toHaveBeenCalledWith(
 			{
 				err: {

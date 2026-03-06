@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	createTaskSchema,
-	reorderTasksSchema,
-	updateTaskSchema
-} from './schemas';
+import { createTaskSchema, reorderTasksSchema, updateTaskSchema } from './schemas';
 
 describe('task schemas', () => {
 	it('should parse valid task payloads', () => {
@@ -41,17 +37,16 @@ describe('task schemas', () => {
 	});
 
 	it('should reject invalid task payloads', () => {
-		expect(
-			() =>
-				createTaskSchema.parse({
-					title: '',
-					note: '',
-					startDate: '2026-03-01',
-					endDate: '2026-03-02',
-					progress: 0,
-					assigneeIds: [],
-					predecessorTaskId: null
-				})
+		expect(() =>
+			createTaskSchema.parse({
+				title: '',
+				note: '',
+				startDate: '2026-03-01',
+				endDate: '2026-03-02',
+				progress: 0,
+				assigneeIds: [],
+				predecessorTaskId: null
+			})
 		).toThrow();
 		expect(() => updateTaskSchema.parse({ updatedAt: 'invalid-date' })).toThrow();
 		expect(() => reorderTasksSchema.parse({ ids: [] })).toThrow();

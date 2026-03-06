@@ -169,8 +169,7 @@ export function createGanttPageHandlers(params: {
 					true: 'clear',
 					false: 'keep'
 				};
-				const mode =
-					modeByClearPending[String(next.clearPendingImport) as 'true' | 'false'];
+				const mode = modeByClearPending[String(next.clearPendingImport) as 'true' | 'false'];
 				pendingImportActionByMode[mode]();
 			}
 		});
@@ -362,7 +361,7 @@ export function createGanttPageHandlers(params: {
 			try {
 				const snapshot = state.read();
 				const editingTaskId = snapshot.editingTaskId;
-				const sourceTask = editingTaskId ? snapshot.taskById.get(editingTaskId) ?? null : null;
+				const sourceTask = editingTaskId ? (snapshot.taskById.get(editingTaskId) ?? null) : null;
 				const result = await runSubmitTaskWorkflow({
 					store: deps.store,
 					mode: snapshot.modalMode,

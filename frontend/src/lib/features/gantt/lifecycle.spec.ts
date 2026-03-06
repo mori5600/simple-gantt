@@ -307,9 +307,9 @@ describe('gantt lifecycle helpers', () => {
 				projects: projects.readable,
 				users: users.readable,
 				projectMembers: members.readable,
-				loadProjects: vi.fn().mockResolvedValue([
-					{ id: 'project-1', name: 'A', sortOrder: 0, updatedAt: 'x' }
-				]),
+				loadProjects: vi
+					.fn()
+					.mockResolvedValue([{ id: 'project-1', name: 'A', sortOrder: 0, updatedAt: 'x' }]),
 				load: vi.fn().mockResolvedValue([])
 			},
 			refreshProject,

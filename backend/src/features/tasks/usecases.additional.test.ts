@@ -262,7 +262,9 @@ describe('tasks usecases additional coverage', () => {
 				title: '更新',
 				updatedAt: '2026-03-01T00:00:00.000Z'
 			})
-		).rejects.toThrow('task は他ユーザーによって更新されました。再読み込みして再度お試しください。');
+		).rejects.toThrow(
+			'task は他ユーザーによって更新されました。再読み込みして再度お試しください。'
+		);
 	});
 
 	it('updateTaskUseCase should capture all changed scalar fields in history', async () => {

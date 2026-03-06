@@ -84,7 +84,9 @@ export function createGanttPageViewBindings(params: {
 		autoFitListColumns(): void {
 			const snapshot = state.read();
 			state.setIsListColumnAuto(true);
-			state.setListColumnWidths(computeAutoColumnWidths(snapshot.orderedTasks, snapshot.projectMembers));
+			state.setListColumnWidths(
+				computeAutoColumnWidths(snapshot.orderedTasks, snapshot.projectMembers)
+			);
 		},
 
 		selectTask(taskId: string): void {

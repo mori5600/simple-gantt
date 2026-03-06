@@ -5,9 +5,4 @@ import {
 	updateProjectSchema
 } from '@simple-gantt/shared/tasks-node';
 
-export {
-	createProjectSchema,
-	reorderProjectsSchema,
-	setProjectMembersSchema,
-	updateProjectSchema
-};
+export { createProjectSchema, reorderProjectsSchema, setProjectMembersSchema, updateProjectSchema };

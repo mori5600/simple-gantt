@@ -86,10 +86,7 @@ describe('prisma platform', () => {
 
 		expect(cachedClient.$connect).toHaveBeenCalledTimes(1);
 		expect(cachedClient.$queryRawUnsafe).toHaveBeenNthCalledWith(1, 'PRAGMA journal_mode = WAL;');
-		expect(cachedClient.$queryRawUnsafe).toHaveBeenNthCalledWith(
-			2,
-			'PRAGMA busy_timeout = 1500;'
-		);
+		expect(cachedClient.$queryRawUnsafe).toHaveBeenNthCalledWith(2, 'PRAGMA busy_timeout = 1500;');
 	});
 
 	it('should default sqlite busy timeout when environment variable is missing', async () => {

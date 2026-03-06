@@ -9,10 +9,7 @@ type IndexMocks = {
 	serveMock: ReturnType<typeof vi.fn>;
 };
 
-async function importIndexModule(options?: {
-	apiPort?: string;
-	initializeDatabaseError?: Error;
-}) {
+async function importIndexModule(options?: { apiPort?: string; initializeDatabaseError?: Error }) {
 	const createAppMock = vi.fn(() => ({
 		fetch: vi.fn()
 	}));
@@ -28,9 +25,11 @@ async function importIndexModule(options?: {
 	const prismaMock = {
 		$disconnect: vi.fn().mockResolvedValue(undefined)
 	};
-	const serveMock = vi.fn((config: { port: number }, onListen: (info: { port: number }) => void) => {
-		onListen({ port: config.port });
-	});
+	const serveMock = vi.fn(
+		(config: { port: number }, onListen: (info: { port: number }) => void) => {
+			onListen({ port: config.port });
+		}
+	);
 	const registeredHandlers = new Map<string, () => void>();
 
 	vi.doMock('./app', () => ({
@@ -48,12 +47,13 @@ async function importIndexModule(options?: {
 		prisma: prismaMock
 	}));
 
-	const onSpy = vi
-		.spyOn(process, 'on')
-		.mockImplementation(((event: string, handler: () => void) => {
-			registeredHandlers.set(event, handler);
-			return process;
-		}) as unknown as typeof process.on);
+	const onSpy = vi.spyOn(process, 'on').mockImplementation(((
+		event: string,
+		handler: () => void
+	) => {
+		registeredHandlers.set(event, handler);
+		return process;
+	}) as unknown as typeof process.on);
 	const exitSpy = vi
 		.spyOn(process, 'exit')
 		.mockImplementation(((code?: number) => undefined as never) as (code?: number) => never);

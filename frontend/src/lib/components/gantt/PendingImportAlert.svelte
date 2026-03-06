@@ -7,13 +7,7 @@
 		onCancel: () => void;
 	};
 
-	let {
-		fileName,
-		missingAssigneeNames,
-		isImporting,
-		onContinue,
-		onCancel
-	}: Props = $props();
+	let { fileName, missingAssigneeNames, isImporting, onContinue, onCancel }: Props = $props();
 </script>
 
 <div class="border-y border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -41,4 +35,3 @@
 		</button>
 	</div>
 </div>
-

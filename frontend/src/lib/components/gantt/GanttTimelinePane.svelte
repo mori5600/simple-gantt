@@ -66,6 +66,7 @@
 		tasks,
 		selectedTaskId,
 		zoom,
+		scrollToTodayRequest,
 		getAssigneeSummary,
 		isTaskOverdue,
 		hasDependencyViolation,
@@ -78,6 +79,7 @@
 		tasks: Task[];
 		selectedTaskId: string | null;
 		zoom: ZoomLevel;
+		scrollToTodayRequest: number;
 		getAssigneeSummary: (task: Task) => string;
 		isTaskOverdue: (task: Task) => boolean;
 		hasDependencyViolation: (task: Task) => boolean;
@@ -89,11 +91,13 @@
 	}>();
 
 	let timelineScrollEl = $state<HTMLDivElement | null>(null);
+	let todayLineEl = $state<HTMLDivElement | null>(null);
 	let isPanning = $state(false);
 	let panPointerId = $state<number | null>(null);
 	let panStartX = 0;
 	let panStartScrollLeft = 0;
 	let dragState = $state<DragState | null>(null);
+	let lastHandledScrollToTodayRequest = $state(0);
 
 	const dayWidth = $derived.by(() => {
 		if (zoom === 'day') {
@@ -192,6 +196,24 @@
 	const todayDate = $derived(toIsoDate(new Date()));
 	const todayOffset = $derived(diffDays(timelineStart, todayDate) * dayWidth);
 	const showTodayLine = $derived(todayOffset >= 0 && todayOffset <= timelineWidth);
+
+	function scrollToToday(): void {
+		if (!todayLineEl || !showTodayLine) {
+			return;
+		}
+		todayLineEl.scrollIntoView({
+			block: 'nearest',
+			inline: 'center'
+		});
+	}
+
+	$effect(() => {
+		if (scrollToTodayRequest === 0 || scrollToTodayRequest === lastHandledScrollToTodayRequest) {
+			return;
+		}
+		lastHandledScrollToTodayRequest = scrollToTodayRequest;
+		scrollToToday();
+	});
 
 	function getDisplayStart(task: Task): string {
 		if (dragState && dragState.taskId === task.id) {
@@ -458,6 +480,7 @@
 	<div
 		bind:this={timelineScrollEl}
 		class={`h-full overflow-x-auto overflow-y-hidden ${timelineCursor}`}
+		data-testid="gantt-timeline-scroll"
 		role="presentation"
 		onpointerdown={startTimelinePan}
 	>
@@ -579,7 +602,9 @@
 
 				{#if showTodayLine}
 					<div
+						bind:this={todayLineEl}
 						class="pointer-events-none absolute inset-y-0 z-18 w-0.5 bg-orange-500"
+						data-testid="gantt-today-line"
 						style={`left: ${todayOffset}px;`}
 					></div>
 				{/if}

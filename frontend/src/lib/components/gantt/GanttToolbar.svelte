@@ -20,6 +20,7 @@
 		onCreate,
 		onEdit,
 		onDelete,
+		onJumpToToday,
 		onAutoFit,
 		onImport,
 		onExport,
@@ -38,6 +39,7 @@
 		onCreate: () => void;
 		onEdit: () => void;
 		onDelete: () => void;
+		onJumpToToday: () => void;
 		onAutoFit: () => void;
 		onImport: (file: File) => void;
 		onExport: (format: ExportFormat) => void;
@@ -152,97 +154,114 @@
 					</a>
 				</div>
 
-				<div class="flex flex-wrap items-center gap-2">
-					<button
-						type="button"
-						class="h-10 rounded-xl bg-sky-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
-						onclick={onCreate}
-						disabled={selectedProjectId.length === 0 || projects.length === 0}
-					>
-						タスク追加
-					</button>
-					<button
-						type="button"
-						class="h-10 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
-						onclick={onEdit}
-						disabled={!hasSelectedTask}
-					>
-						編集
-					</button>
-					<button
-						type="button"
-						class="h-10 rounded-xl border border-rose-300 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
-						onclick={onDelete}
-						disabled={!hasSelectedTask}
-					>
-						削除
-					</button>
-					<button
-						type="button"
-						class="h-10 rounded-xl border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-45"
-						onclick={openImportFileDialog}
-						disabled={importDisabled || isImporting}
-					>
-						{isImporting ? '取込中...' : '取込'}
-					</button>
-					<label for="gantt-import-file" class="sr-only">取込ファイル</label>
-					<input
-						id="gantt-import-file"
-						type="file"
-						accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-						class="sr-only"
-						bind:this={importFileInput}
-						onchange={handleImportFileChange}
-					/>
-					<div class="relative" bind:this={exportMenuContainer}>
+				<div class="flex flex-wrap items-center gap-3">
+					<div class="flex flex-wrap items-center gap-2">
 						<button
 							type="button"
-							class="h-10 rounded-xl border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-45"
-							onclick={toggleExportMenu}
-							disabled={exportDisabled}
-							aria-haspopup="menu"
-							aria-expanded={isExportMenuOpen}
+							class="h-10 rounded-xl bg-sky-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
+							onclick={onCreate}
+							disabled={selectedProjectId.length === 0 || projects.length === 0}
 						>
-							{isExporting ? '出力中...' : '出力'}
+							タスク追加
 						</button>
-						{#if isExportMenuOpen}
-							<div
-								class="absolute top-11 left-0 z-40 min-w-36 rounded-xl border border-slate-300 bg-white p-1 shadow-lg"
-								role="menu"
-								aria-label="export format"
+						<button
+							type="button"
+							class="h-10 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+							onclick={onEdit}
+							disabled={!hasSelectedTask}
+						>
+							編集
+						</button>
+						<button
+							type="button"
+							class="h-10 rounded-xl border border-rose-300 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
+							onclick={onDelete}
+							disabled={!hasSelectedTask}
+						>
+							削除
+						</button>
+						<button
+							type="button"
+							class="h-10 rounded-xl border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-45"
+							onclick={openImportFileDialog}
+							disabled={importDisabled || isImporting}
+						>
+							{isImporting ? '取込中...' : '取込'}
+						</button>
+						<label for="gantt-import-file" class="sr-only">取込ファイル</label>
+						<input
+							id="gantt-import-file"
+							type="file"
+							accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+							class="sr-only"
+							bind:this={importFileInput}
+							onchange={handleImportFileChange}
+						/>
+						<div class="relative" bind:this={exportMenuContainer}>
+							<button
+								type="button"
+								class="h-10 rounded-xl border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-45"
+								onclick={toggleExportMenu}
+								disabled={exportDisabled}
+								aria-haspopup="menu"
+								aria-expanded={isExportMenuOpen}
 							>
-								<button
-									type="button"
-									class="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
-									onclick={() => selectExport('csv')}
-									disabled={isExporting}
+								{isExporting ? '出力中...' : '出力'}
+							</button>
+							{#if isExportMenuOpen}
+								<div
+									class="absolute top-11 left-0 z-40 min-w-36 rounded-xl border border-slate-300 bg-white p-1 shadow-lg"
+									role="menu"
+									aria-label="export format"
 								>
-									CSV
-								</button>
-								<button
-									type="button"
-									class="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
-									onclick={() => selectExport('xlsx')}
-									disabled={isExporting}
-								>
-									XLSX
-								</button>
-							</div>
-						{/if}
+									<button
+										type="button"
+										class="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+										onclick={() => selectExport('csv')}
+										disabled={isExporting}
+									>
+										CSV
+									</button>
+									<button
+										type="button"
+										class="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+										onclick={() => selectExport('xlsx')}
+										disabled={isExporting}
+									>
+										XLSX
+									</button>
+								</div>
+							{/if}
+						</div>
 					</div>
-					<button
-						type="button"
-						class={`h-10 rounded-xl border px-4 text-sm font-semibold transition focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none ${
-							isListColumnAuto
-								? 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100'
-								: 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
-						}`}
-						onclick={onAutoFit}
-						aria-pressed={isListColumnAuto}
-						title="タスクリストの列幅を自動調整"
+
+					<div
+						class="inline-flex flex-wrap items-center gap-1.5 rounded-2xl border border-slate-300/90 bg-slate-100/85 p-1 shadow-sm"
+						role="group"
+						aria-label="view utilities"
 					>
-						Auto Fit
-					</button>
+						<button
+							type="button"
+							class={`h-9 rounded-xl border px-3.5 text-sm font-semibold transition focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none ${
+								isListColumnAuto
+									? 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100'
+									: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+							}`}
+							onclick={onAutoFit}
+							aria-pressed={isListColumnAuto}
+							title="タスクリストの列幅を自動調整"
+						>
+							Auto Fit
+						</button>
+						<button
+							type="button"
+							class="h-9 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+							onclick={onJumpToToday}
+							title="今日へ移動"
+						>
+							今日
+						</button>
+					</div>
 				</div>
 			</div>
 

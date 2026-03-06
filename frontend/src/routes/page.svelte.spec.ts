@@ -44,6 +44,7 @@ describe('/+page.svelte', () => {
 		await expect.element(page.getByRole('button', { name: '編集' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '取込' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '出力' })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: '今日' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Day' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Week' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Month' })).toBeInTheDocument();
@@ -184,5 +185,34 @@ describe('/+page.svelte', () => {
 		await expect
 			.element(page.getByTitle('UI実装 / 担当: 佐藤, 山田 / 遅延中', { exact: true }))
 			.toBeInTheDocument();
+	});
+
+	it('should scroll timeline to today when the today button is clicked', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-03-01T00:00:00.000Z'));
+		await tasksRepo.create('project-default', {
+			title: '長期タスク',
+			note: '',
+			startDate: '2025-12-01',
+			endDate: '2026-06-01',
+			progress: 30,
+			assigneeIds: [],
+			predecessorTaskId: null
+		});
+
+		await renderPage();
+
+		const todayLine = page.getByTestId('gantt-today-line');
+		await expect.element(todayLine).toBeInTheDocument();
+		const scrollIntoViewSpy = vi.spyOn(todayLine.element(), 'scrollIntoView');
+
+		await page.getByRole('button', { name: '今日' }).click();
+
+		expect(scrollIntoViewSpy).toHaveBeenCalledOnce();
+		expect(scrollIntoViewSpy).toHaveBeenCalledWith({
+			block: 'nearest',
+			inline: 'center'
+		});
+		scrollIntoViewSpy.mockRestore();
 	});
 });

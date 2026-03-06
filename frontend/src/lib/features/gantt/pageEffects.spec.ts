@@ -57,7 +57,9 @@ function userFixture(partial: Partial<User> = {}): User {
 	};
 }
 
-function createSnapshot(overrides: Partial<GanttPageEffectsSnapshot> = {}): GanttPageEffectsSnapshot {
+function createSnapshot(
+	overrides: Partial<GanttPageEffectsSnapshot> = {}
+): GanttPageEffectsSnapshot {
 	return {
 		visibleTasks: [taskFixture()],
 		selectedTaskId: null,

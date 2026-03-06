@@ -86,6 +86,7 @@
 	let pendingImportRows = $state<TaskImportRow[] | null>(null);
 	let pendingImportFileName = $state('');
 	let pendingMissingAssigneeNames = $state<string[]>([]);
+	let scrollToTodayRequest = $state(0);
 
 	const orderedTasks = $derived.by(() => orderTasksForDisplay(tasks));
 	const selectedProject = $derived.by(
@@ -96,9 +97,7 @@
 	);
 	const hasActiveFilters = $derived.by(() => hasActiveTaskFilters(taskFilters));
 	const visibleTasks = $derived.by(() => filterTasksByFilters(orderedTasks, taskFilters));
-	const overdueCount = $derived.by(
-		() => visibleTasks.filter((task) => isTaskOverdue(task)).length
-	);
+	const overdueCount = $derived.by(() => visibleTasks.filter((task) => isTaskOverdue(task)).length);
 
 	const selectedTask = $derived.by(() => {
 		if (!selectedTaskId) {
@@ -197,6 +196,10 @@
 		editingTaskId = null;
 	}
 
+	function jumpToToday(): void {
+		scrollToTodayRequest += 1;
+	}
+
 	const {
 		setZoom,
 		resetFilters,
@@ -288,7 +291,6 @@
 			emptyTaskForm: EMPTY_TASK_FORM
 		}
 	});
-
 </script>
 
 <div class="h-screen overflow-hidden bg-slate-100 text-slate-800 select-none">
@@ -303,6 +305,7 @@
 			onCreate={openCreateModal}
 			onEdit={() => openTaskEditPage()}
 			onDelete={deleteSelectedTask}
+			onJumpToToday={jumpToToday}
 			onAutoFit={autoFitListColumns}
 			onImport={(file) => void importTasks(file)}
 			importDisabled={selectedProjectId.length === 0 || pendingMissingAssigneeNames.length > 0}
@@ -366,6 +369,7 @@
 					tasks={visibleTasks}
 					{selectedTaskId}
 					{zoom}
+					{scrollToTodayRequest}
 					{getAssigneeSummary}
 					{isTaskOverdue}
 					{hasDependencyViolation}

@@ -17,11 +17,13 @@ type MockLogger = {
 async function importLoggerModule(writeResults: boolean[] = [true]) {
 	const mkdirSyncMock = vi.fn();
 	const createWriteStreamMock = vi.fn();
-	const streams: Array<EventEmitter & {
-		end: ReturnType<typeof vi.fn>;
-		path: string;
-		write: ReturnType<typeof vi.fn>;
-	}> = [];
+	const streams: Array<
+		EventEmitter & {
+			end: ReturnType<typeof vi.fn>;
+			path: string;
+			write: ReturnType<typeof vi.fn>;
+		}
+	> = [];
 
 	createWriteStreamMock.mockImplementation((path: string) => {
 		const stream = new EventEmitter() as EventEmitter & {
@@ -38,21 +40,23 @@ async function importLoggerModule(writeResults: boolean[] = [true]) {
 		return stream;
 	});
 
-	const pinoMock = vi.fn((options: MockLogger['options'], destination: MockLogger['destination']) => ({
-		destination,
-		end: () =>
-			new Promise<void>((resolve, reject) => {
-				destination.end((error?: Error | null) => {
-					if (error) {
-						reject(error);
-						return;
-					}
-					resolve();
-				});
-			}),
-		info: (payload: unknown) => destination.write(`${JSON.stringify(payload)}\n`),
-		options
-	}));
+	const pinoMock = vi.fn(
+		(options: MockLogger['options'], destination: MockLogger['destination']) => ({
+			destination,
+			end: () =>
+				new Promise<void>((resolve, reject) => {
+					destination.end((error?: Error | null) => {
+						if (error) {
+							reject(error);
+							return;
+						}
+						resolve();
+					});
+				}),
+			info: (payload: unknown) => destination.write(`${JSON.stringify(payload)}\n`),
+			options
+		})
+	);
 	(pinoMock as unknown as { stdTimeFunctions: { isoTime: () => string } }).stdTimeFunctions = {
 		isoTime: () => 'iso-time'
 	};
