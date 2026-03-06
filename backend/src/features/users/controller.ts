@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from '@simple-gantt/shared/http-status';
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { toApiUser, toApiUserSummary } from '../../api/serializers';
@@ -15,10 +16,10 @@ import { createUserSchema, updateUserSchema } from './schemas';
 
 function handleUserValidationError(error: unknown): never {
 	if (error instanceof UserModelValidationError) {
-		throw new HTTPException(400, { message: error.message });
+		throw new HTTPException(HTTP_STATUS.BAD_REQUEST, { message: error.message });
 	}
 	if (error instanceof UserOptimisticLockError) {
-		throw new HTTPException(409, { message: error.message });
+		throw new HTTPException(HTTP_STATUS.CONFLICT, { message: error.message });
 	}
 	throw error;
 }
@@ -46,7 +47,7 @@ export async function createUserController(c: Context) {
 
 	try {
 		const created = await createUserUseCase(payload);
-		return c.json(toApiUser(created), 201);
+		return c.json(toApiUser(created), HTTP_STATUS.CREATED);
 	} catch (error) {
 		handleUserValidationError(error);
 	}
@@ -59,7 +60,7 @@ export async function updateUserController(c: Context) {
 	try {
 		const updated = await updateUserUseCase(userId, payload);
 		if (!updated) {
-			throw new HTTPException(404, { message: 'user not found' });
+			throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: 'user not found' });
 		}
 		return c.json(toApiUser(updated));
 	} catch (error) {
@@ -73,9 +74,9 @@ export async function deleteUserController(c: Context) {
 	try {
 		const deleted = await deleteUserUseCase(userId);
 		if (!deleted) {
-			throw new HTTPException(404, { message: 'user not found' });
+			throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: 'user not found' });
 		}
-		return c.body(null, 204);
+		return c.body(null, HTTP_STATUS.NO_CONTENT);
 	} catch (error) {
 		handleUserValidationError(error);
 	}

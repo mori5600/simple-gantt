@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from '@simple-gantt/shared/http-status';
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { toApiProject, toApiProjectSummary, toApiUser } from '../../api/serializers';
@@ -23,10 +24,10 @@ import {
 
 function handleProjectValidationError(error: unknown): never {
 	if (error instanceof ProjectModelValidationError) {
-		throw new HTTPException(400, { message: error.message });
+		throw new HTTPException(HTTP_STATUS.BAD_REQUEST, { message: error.message });
 	}
 	if (error instanceof ProjectOptimisticLockError) {
-		throw new HTTPException(409, { message: error.message });
+		throw new HTTPException(HTTP_STATUS.CONFLICT, { message: error.message });
 	}
 	throw error;
 }
@@ -54,7 +55,7 @@ export async function createProjectController(c: Context) {
 
 	try {
 		const created = await createProjectUseCase(payload);
-		return c.json(toApiProject(created), 201);
+		return c.json(toApiProject(created), HTTP_STATUS.CREATED);
 	} catch (error) {
 		handleProjectValidationError(error);
 	}
@@ -66,7 +67,7 @@ export async function listProjectMembersController(c: Context) {
 	try {
 		const members = await listProjectMembersUseCase(projectId);
 		if (!members) {
-			throw new HTTPException(404, { message: 'project not found' });
+			throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: 'project not found' });
 		}
 		return c.json(members.map(toApiUser));
 	} catch (error) {
@@ -81,7 +82,7 @@ export async function updateProjectController(c: Context) {
 	try {
 		const updated = await updateProjectUseCase(projectId, payload);
 		if (!updated) {
-			throw new HTTPException(404, { message: 'project not found' });
+			throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: 'project not found' });
 		}
 		return c.json(toApiProject(updated));
 	} catch (error) {
@@ -95,9 +96,9 @@ export async function deleteProjectController(c: Context) {
 	try {
 		const deleted = await deleteProjectUseCase(projectId);
 		if (!deleted) {
-			throw new HTTPException(404, { message: 'project not found' });
+			throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: 'project not found' });
 		}
-		return c.body(null, 204);
+		return c.body(null, HTTP_STATUS.NO_CONTENT);
 	} catch (error) {
 		handleProjectValidationError(error);
 	}
@@ -121,7 +122,7 @@ export async function setProjectMembersController(c: Context) {
 	try {
 		const members = await setProjectMembersUseCase(projectId, payload);
 		if (!members) {
-			throw new HTTPException(404, { message: 'project not found' });
+			throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: 'project not found' });
 		}
 		return c.json(members.map(toApiUser));
 	} catch (error) {

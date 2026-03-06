@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from '@simple-gantt/shared/http-status';
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
@@ -51,7 +52,7 @@ export function createApp(): Hono {
 
 	app.route('/api', createApiRoutes());
 
-	app.notFound((c) => c.json({ error: 'Not Found' }, 404));
+	app.notFound((c) => c.json({ error: 'Not Found' }, HTTP_STATUS.NOT_FOUND));
 
 	app.onError((error, c) => {
 		const requestContext = requestLogContext(c);
@@ -83,7 +84,7 @@ export function createApp(): Hono {
 						message: issue.message
 					}))
 				},
-				400
+				HTTP_STATUS.BAD_REQUEST
 			);
 		}
 
@@ -94,7 +95,7 @@ export function createApp(): Hono {
 			},
 			'Unhandled application error'
 		);
-		return c.json({ error: 'Internal Server Error' }, 500);
+		return c.json({ error: 'Internal Server Error' }, HTTP_STATUS.INTERNAL_SERVER_ERROR);
 	});
 
 	return app;

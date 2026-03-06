@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from '@simple-gantt/shared/http-status';
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { toApiTask, toApiTaskHistory } from '../../api/serializers';
@@ -17,13 +18,13 @@ import { createTaskSchema, reorderTasksSchema, updateTaskSchema } from './schema
 
 function handleTaskValidationError(error: unknown): never {
 	if (error instanceof ProjectNotFoundError) {
-		throw new HTTPException(404, { message: error.message });
+		throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: error.message });
 	}
 	if (error instanceof TaskModelValidationError) {
-		throw new HTTPException(400, { message: error.message });
+		throw new HTTPException(HTTP_STATUS.BAD_REQUEST, { message: error.message });
 	}
 	if (error instanceof TaskOptimisticLockError) {
-		throw new HTTPException(409, { message: error.message });
+		throw new HTTPException(HTTP_STATUS.CONFLICT, { message: error.message });
 	}
 	throw error;
 }
@@ -31,7 +32,9 @@ function handleTaskValidationError(error: unknown): never {
 function requireProjectId(c: Context): string {
 	const projectId = c.req.query('projectId')?.trim();
 	if (!projectId) {
-		throw new HTTPException(400, { message: 'projectId クエリは必須です。' });
+		throw new HTTPException(HTTP_STATUS.BAD_REQUEST, {
+			message: 'projectId クエリは必須です。'
+		});
 	}
 	return projectId;
 }
@@ -53,7 +56,7 @@ export async function createTaskController(c: Context) {
 
 	try {
 		const created = await createTaskUseCase(projectId, payload);
-		return c.json(toApiTask(created), 201);
+		return c.json(toApiTask(created), HTTP_STATUS.CREATED);
 	} catch (error) {
 		handleTaskValidationError(error);
 	}
@@ -80,7 +83,7 @@ export async function updateTaskController(c: Context) {
 		const updated = await updateTaskUseCase(projectId, taskId, payload);
 
 		if (!updated) {
-			throw new HTTPException(404, { message: 'task not found' });
+			throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: 'task not found' });
 		}
 
 		return c.json(toApiTask(updated));
@@ -97,10 +100,10 @@ export async function deleteTaskController(c: Context) {
 		const deleted = await deleteTaskUseCase(projectId, taskId);
 
 		if (!deleted) {
-			throw new HTTPException(404, { message: 'task not found' });
+			throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: 'task not found' });
 		}
 
-		return c.body(null, 204);
+		return c.body(null, HTTP_STATUS.NO_CONTENT);
 	} catch (error) {
 		handleTaskValidationError(error);
 	}

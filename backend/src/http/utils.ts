@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from '@simple-gantt/shared/http-status';
 import { HTTPException } from 'hono/http-exception';
 
 const defaultCorsOrigins = [
@@ -24,6 +25,8 @@ export async function readJson<T>(request: Request): Promise<T> {
 	try {
 		return (await request.json()) as T;
 	} catch {
-		throw new HTTPException(400, { message: 'JSON ボディの形式が不正です。' });
+		throw new HTTPException(HTTP_STATUS.BAD_REQUEST, {
+			message: 'JSON ボディの形式が不正です。'
+		});
 	}
 }
