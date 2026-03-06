@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
-import { getCurrentLogFilePath, logger } from './lib/logger';
-import { initializeDatabase, prisma } from './models/db';
+import { getCurrentLogFilePath, logger } from './platform/logger';
+import { initializeDatabase, prisma } from './platform/prisma';
 
 const app = createApp();
 const port = Number(process.env.API_PORT ?? 8787);

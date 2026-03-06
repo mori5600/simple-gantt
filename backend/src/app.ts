@@ -2,9 +2,9 @@ import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { ZodError } from 'zod';
-import { resolveCorsOrigins } from './lib/http';
-import { logger } from './lib/logger';
-import { registerApiRoutes } from './routes/api-routes';
+import { createApiRoutes } from './api/routes';
+import { resolveCorsOrigins } from './http/utils';
+import { logger } from './platform/logger';
 
 function requestLogContext(c: Context): { method: string; path: string } {
 	return {
@@ -49,7 +49,7 @@ export function createApp(): Hono {
 		})
 	);
 
-	registerApiRoutes(app);
+	app.route('/api', createApiRoutes());
 
 	app.notFound((c) => c.json({ error: 'Not Found' }, 404));
 
