@@ -33,6 +33,8 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
+`pnpm install` 実行時に Git の `core.hooksPath` が `.githooks` に設定され、pre-commit hook が有効になります。
+
 ## Dockerでの運用起動
 
 `compose.yaml` は運用向けに以下の3サービスで構成されています。

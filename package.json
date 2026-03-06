@@ -13,6 +13,7 @@
 		"prisma": "^6.16.3"
 	},
 	"scripts": {
+		"prepare": "sh ./scripts/setup-git-hooks.sh",
 		"frontend:dev": "pnpm --filter @simple-gantt/frontend dev",
 		"frontend:build": "pnpm --filter @simple-gantt/frontend build",
 		"frontend:build:strict": "pnpm --filter @simple-gantt/frontend build:strict",
@@ -41,6 +42,7 @@
 		"format:check": "pnpm prettier:check",
 		"prettier:check": "pnpm exec prettier --check . --ignore-path .prettierignore",
 		"prettier:write": "pnpm exec prettier --write . --ignore-path .prettierignore",
+		"pre-commit:check": "pnpm lint && pnpm check && pnpm test",
 		"test": "pnpm frontend:test && pnpm backend:test",
 		"prisma:generate": "pnpm --filter @simple-gantt/backend prisma:generate",
 		"prisma:push": "pnpm --filter @simple-gantt/backend prisma:push",
