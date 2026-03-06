@@ -1,5 +1,5 @@
 import { base } from '$app/paths';
-import { HTTP_STATUS } from '@simple-gantt/shared/http-status';
+import { HTTP_STATUS } from '@simple-gantt/shared';
 import { redirect } from '@sveltejs/kit';
 
 export function load(): never {
