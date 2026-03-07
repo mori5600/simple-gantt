@@ -19,9 +19,7 @@ vi.mock('$lib/data/tasks/repo', async () => {
 
 async function renderPage(): Promise<void> {
 	render(Page);
-	await expect
-		.element(page.getByRole('heading', { name: /プロジェクト ガント/ }))
-		.toBeInTheDocument();
+	await expect.element(page.getByRole('combobox', { name: 'Project' })).toBeInTheDocument();
 	await expect.element(page.getByTitle('要件確認', { exact: true })).toBeInTheDocument();
 }
 

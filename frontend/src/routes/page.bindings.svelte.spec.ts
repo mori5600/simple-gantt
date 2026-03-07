@@ -168,9 +168,7 @@ function taskFixture(overrides: Partial<Task> = {}): Task {
 async function renderPageWithHarness(): Promise<void> {
 	harness.reset();
 	render(Page);
-	await expect
-		.element(page.getByRole('heading', { name: /プロジェクト ガント/ }))
-		.toBeInTheDocument();
+	await expect.element(page.getByRole('combobox', { name: 'Project' })).toBeInTheDocument();
 	if (!harness.lifecycleParams || !harness.effectsParams || !harness.handlerState) {
 		throw new Error('expected page harness to capture params');
 	}

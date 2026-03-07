@@ -55,6 +55,9 @@
 	let isExportMenuOpen = $state(false);
 	let exportMenuContainer: HTMLDivElement | null = null;
 	let importFileInput: HTMLInputElement | null = null;
+	const selectedProjectName = $derived.by(
+		() => projects.find((project: Project) => project.id === selectedProjectId)?.name ?? 'Project'
+	);
 
 	function toggleExportMenu(): void {
 		if (exportDisabled) {
@@ -114,25 +117,21 @@
 	});
 </script>
 
-<header class="sticky top-0 z-30 border-b border-slate-300/90 bg-slate-50/95 backdrop-blur">
-	<div class="px-3 py-3 sm:px-4">
-		<div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-			<div class="flex min-w-0 flex-col gap-3">
-				<div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-					<h1 class="truncate text-base font-semibold text-slate-900 sm:text-lg">
-						プロジェクト ガント
-					</h1>
+<header class="sticky top-0 z-30 border-b border-slate-200/90 bg-stone-50/95 backdrop-blur">
+	<div class="px-3 py-4 sm:px-5">
+		<h1 class="sr-only">{selectedProjectName} のガント</h1>
+		<div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+			<div class="min-w-0 space-y-4">
+				<div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
 					<label
-						class="flex min-w-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm"
+						class="flex max-w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white/85 px-3 py-2.5"
 					>
-						<span
-							class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase sm:text-xs"
-						>
+						<span class="text-[10px] font-medium tracking-[0.28em] text-slate-400 uppercase">
 							Project
 						</span>
 						<select
 							name="selectedProjectId"
-							class="max-w-60 min-w-40 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
+							class="max-w-72 min-w-36 truncate border-0 bg-transparent px-0 text-base font-medium text-slate-800 transition outline-none focus:outline-none"
 							value={selectedProjectId}
 							onchange={(event) =>
 								onProjectChange((event.currentTarget as HTMLSelectElement).value)}
@@ -142,29 +141,32 @@
 							{/each}
 						</select>
 					</label>
-					<a
-						href={resolve('/admin/projects')}
-						class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-slate-700 transition hover:bg-slate-100"
-						aria-label="管理"
-						title="管理"
-					>
-						<i class="bi bi-people text-base" aria-hidden="true"></i>
-					</a>
-					<a
-						href={resolve('/settings')}
-						class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-slate-700 transition hover:bg-slate-100"
-						aria-label="設定"
-						title="設定"
-					>
-						<i class="bi bi-gear text-base" aria-hidden="true"></i>
-					</a>
+
+					<div class="flex items-center gap-1.5">
+						<a
+							href={resolve('/admin/projects')}
+							class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white/80 px-3 text-slate-600 transition hover:bg-white hover:text-slate-800"
+							aria-label="管理"
+							title="管理"
+						>
+							<i class="bi bi-people text-base" aria-hidden="true"></i>
+						</a>
+						<a
+							href={resolve('/settings')}
+							class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white/80 px-3 text-slate-600 transition hover:bg-white hover:text-slate-800"
+							aria-label="設定"
+							title="設定"
+						>
+							<i class="bi bi-gear text-base" aria-hidden="true"></i>
+						</a>
+					</div>
 				</div>
 
-				<div class="flex flex-wrap items-center gap-3">
+				<div class="flex flex-wrap items-center gap-2.5">
 					<div class="flex flex-wrap items-center gap-2">
 						<button
 							type="button"
-							class="h-10 rounded-xl bg-sky-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
+							class="h-10 rounded-xl bg-slate-800 px-4 text-sm font-semibold text-stone-50 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-45"
 							onclick={onCreate}
 							disabled={selectedProjectId.length === 0 || projects.length === 0}
 						>
@@ -172,7 +174,7 @@
 						</button>
 						<button
 							type="button"
-							class="h-10 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+							class="h-10 rounded-xl border border-slate-200 bg-white/85 px-4 text-sm font-semibold text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
 							onclick={onEdit}
 							disabled={!hasSelectedTask}
 						>
@@ -180,7 +182,7 @@
 						</button>
 						<button
 							type="button"
-							class="h-10 rounded-xl border border-rose-300 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
+							class="h-10 rounded-xl border border-slate-200 bg-white/85 px-4 text-sm font-semibold text-slate-700 transition hover:border-rose-200 hover:bg-rose-50/60 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-45"
 							onclick={onDelete}
 							disabled={!hasSelectedTask}
 						>
@@ -188,7 +190,7 @@
 						</button>
 						<button
 							type="button"
-							class="h-10 rounded-xl border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-45"
+							class="h-10 rounded-xl border border-slate-200 bg-white/85 px-4 text-sm font-semibold text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
 							onclick={openImportFileDialog}
 							disabled={importDisabled || isImporting}
 						>
@@ -206,7 +208,7 @@
 						<div class="relative" bind:this={exportMenuContainer}>
 							<button
 								type="button"
-								class="h-10 rounded-xl border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-45"
+								class="h-10 rounded-xl border border-slate-200 bg-white/85 px-4 text-sm font-semibold text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
 								onclick={toggleExportMenu}
 								disabled={exportDisabled}
 								aria-haspopup="menu"
@@ -216,13 +218,13 @@
 							</button>
 							{#if isExportMenuOpen}
 								<div
-									class="absolute top-11 left-0 z-40 min-w-36 rounded-xl border border-slate-300 bg-white p-1 shadow-lg"
+									class="absolute top-11 left-0 z-40 min-w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg shadow-slate-900/5"
 									role="menu"
 									aria-label="export format"
 								>
 									<button
 										type="button"
-										class="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+										class="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
 										onclick={() => selectExport('csv')}
 										disabled={isExporting}
 									>
@@ -230,7 +232,7 @@
 									</button>
 									<button
 										type="button"
-										class="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+										class="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
 										onclick={() => selectExport('xlsx')}
 										disabled={isExporting}
 									>
@@ -241,17 +243,15 @@
 						</div>
 					</div>
 
-					<div
-						class="inline-flex flex-wrap items-center gap-1.5 rounded-2xl border border-slate-300/90 bg-slate-100/85 p-1 shadow-sm"
-						role="group"
-						aria-label="view utilities"
-					>
+					<div class="h-5 w-px bg-slate-200"></div>
+
+					<div class="flex flex-wrap items-center gap-2" role="group" aria-label="view utilities">
 						<button
 							type="button"
-							class={`h-9 rounded-xl border px-3.5 text-sm font-semibold transition focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:outline-none ${
+							class={`h-9 rounded-xl border px-3.5 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-slate-400/70 focus-visible:outline-none ${
 								isListColumnAuto
-									? 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100'
-									: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+									? 'border-slate-300 bg-slate-100 text-slate-800'
+									: 'border-slate-200 bg-white/80 text-slate-600 hover:bg-white'
 							}`}
 							onclick={onAutoFit}
 							aria-pressed={isListColumnAuto}
@@ -261,7 +261,7 @@
 						</button>
 						<button
 							type="button"
-							class="h-9 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+							class="h-9 rounded-xl border border-slate-200 bg-white/80 px-3.5 text-sm font-medium text-slate-600 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
 							onclick={onUndo}
 							disabled={!hasUndoableChange || isUndoing}
 							title="直前の変更を元に戻す"
@@ -270,7 +270,7 @@
 						</button>
 						<button
 							type="button"
-							class="h-9 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+							class="h-9 rounded-xl border border-slate-200 bg-white/80 px-3.5 text-sm font-medium text-slate-600 transition hover:bg-white"
 							onclick={onJumpToToday}
 							title="今日へ移動"
 						>
@@ -281,16 +281,16 @@
 			</div>
 
 			<div class="flex items-center gap-2 xl:justify-self-end">
-				<span class="text-xs font-semibold tracking-wide text-slate-500 uppercase">Zoom</span>
+				<span class="text-[10px] font-medium tracking-[0.24em] text-slate-400 uppercase">Zoom</span>
 				<div
-					class="inline-flex rounded-full border border-slate-300 bg-white p-1 shadow-sm"
+					class="inline-flex rounded-full border border-slate-200 bg-white/80 p-1"
 					role="group"
 					aria-label="zoom"
 				>
 					<button
 						type="button"
-						class={`rounded-full px-4 py-1 text-sm font-semibold transition ${
-							zoom === 'day' ? 'bg-sky-700 text-white' : 'text-slate-700 hover:bg-slate-100'
+						class={`rounded-full px-4 py-1 text-sm font-medium transition ${
+							zoom === 'day' ? 'bg-slate-800 text-stone-50' : 'text-slate-600 hover:bg-stone-100'
 						}`}
 						aria-pressed={zoom === 'day'}
 						onclick={() => onZoomChange('day')}
@@ -299,8 +299,8 @@
 					</button>
 					<button
 						type="button"
-						class={`rounded-full px-4 py-1 text-sm font-semibold transition ${
-							zoom === 'week' ? 'bg-sky-700 text-white' : 'text-slate-700 hover:bg-slate-100'
+						class={`rounded-full px-4 py-1 text-sm font-medium transition ${
+							zoom === 'week' ? 'bg-slate-800 text-stone-50' : 'text-slate-600 hover:bg-stone-100'
 						}`}
 						aria-pressed={zoom === 'week'}
 						onclick={() => onZoomChange('week')}
@@ -309,8 +309,8 @@
 					</button>
 					<button
 						type="button"
-						class={`rounded-full px-4 py-1 text-sm font-semibold transition ${
-							zoom === 'month' ? 'bg-sky-700 text-white' : 'text-slate-700 hover:bg-slate-100'
+						class={`rounded-full px-4 py-1 text-sm font-medium transition ${
+							zoom === 'month' ? 'bg-slate-800 text-stone-50' : 'text-slate-600 hover:bg-stone-100'
 						}`}
 						aria-pressed={zoom === 'month'}
 						onclick={() => onZoomChange('month')}
