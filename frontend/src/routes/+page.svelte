@@ -27,6 +27,7 @@
 	import { createGanttPageViewBindings } from '$lib/features/gantt/pageViewBindings';
 	import { resolvePollIntervalMs } from '$lib/shared/polling';
 	import type { ListColumnWidths, TaskDateRange, ZoomLevel } from '$lib/features/gantt/types';
+	import type { UndoTaskUpdate } from '$lib/features/gantt/undo';
 	import { tasksStore } from '$lib/stores/tasksStore';
 	import { tasksRepo, type Project, type Task, type User } from '$lib/data/tasks/repo';
 
@@ -72,6 +73,7 @@
 	let editingTaskId = $state<string | null>(null);
 	let formError = $state('');
 	let isSubmitting = $state(false);
+	let isUndoing = $state(false);
 	let isImporting = $state(false);
 	let isExporting = $state(false);
 	let listColumnWidths = $state<ListColumnWidths>([...LIST_COLUMN_DEFAULT_WIDTHS]);
@@ -86,6 +88,7 @@
 	let pendingImportRows = $state<TaskImportRow[] | null>(null);
 	let pendingImportFileName = $state('');
 	let pendingMissingAssigneeNames = $state<string[]>([]);
+	let lastUndoAction = $state<UndoTaskUpdate | null>(null);
 	let scrollToTodayRequest = $state(0);
 
 	const orderedTasks = $derived.by(() => orderTasksForDisplay(tasks));
@@ -241,6 +244,7 @@
 		submitTask,
 		deleteSelectedTask,
 		commitTaskDateRange,
+		undoLastChange,
 		toggleFormAssignee,
 		setTaskDatePreview,
 		clearTaskDatePreview
@@ -248,6 +252,7 @@
 		state: {
 			read: () => ({
 				editingTaskId,
+				lastUndoAction,
 				modalMode,
 				orderedTasks,
 				pendingImportRows,
@@ -271,6 +276,7 @@
 			setIsImporting: (value) => (isImporting = value),
 			setIsModalOpen: (value) => (isModalOpen = value),
 			setIsSubmitting: (value) => (isSubmitting = value),
+			setIsUndoing: (value) => (isUndoing = value),
 			setModalMode: (value) => (modalMode = value),
 			setPendingImportState: (value) => {
 				pendingImportRows = value.rows;
@@ -280,7 +286,8 @@
 			setSelectedProjectId: (projectId) => (selectedProjectId = projectId),
 			setSelectedTaskId: (taskId) => (selectedTaskId = taskId),
 			setTaskDatePreviews: (previews) => (taskDatePreviews = previews),
-			setTaskForm: (value) => (taskForm = value)
+			setTaskForm: (value) => (taskForm = value),
+			setUndoAction: (value) => (lastUndoAction = value)
 		},
 		deps: {
 			store: tasksStore,
@@ -301,18 +308,21 @@
 			{selectedProjectId}
 			{isListColumnAuto}
 			hasSelectedTask={Boolean(selectedTask)}
+			hasUndoableChange={lastUndoAction !== null}
 			onProjectChange={(projectId) => void changeProject(projectId)}
 			onCreate={openCreateModal}
 			onEdit={() => openTaskEditPage()}
 			onDelete={deleteSelectedTask}
 			onJumpToToday={jumpToToday}
 			onAutoFit={autoFitListColumns}
+			onUndo={() => void undoLastChange()}
 			onImport={(file) => void importTasks(file)}
 			importDisabled={selectedProjectId.length === 0 || pendingMissingAssigneeNames.length > 0}
 			{isImporting}
 			onExport={(format) => void exportTasks(format)}
 			exportDisabled={!canExportTasks}
 			{isExporting}
+			{isUndoing}
 			onZoomChange={setZoom}
 		/>
 		<TaskFiltersBar

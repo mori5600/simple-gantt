@@ -22,6 +22,10 @@ export type SubmitTaskResult =
 	| { kind: 'ok'; selectedTaskId: string }
 	| { kind: 'error'; message: string };
 
+export type CommitTaskDateRangeResult =
+	| { kind: 'ok'; task: Task }
+	| { kind: 'error'; message: string };
+
 export type ChangeProjectSelectionResult =
 	| { kind: 'noop'; projectId: string }
 	| { kind: 'ok'; projectId: string }
@@ -184,16 +188,22 @@ export async function commitTaskDateRangeAction(params: {
 	startDate: string;
 	endDate: string;
 	updatedAt: string;
-}): Promise<string | null> {
+}): Promise<CommitTaskDateRangeResult> {
 	try {
-		await params.store.update(params.projectId, params.taskId, {
+		const updated = await params.store.update(params.projectId, params.taskId, {
 			startDate: params.startDate,
 			endDate: params.endDate,
 			updatedAt: params.updatedAt
 		});
-		return null;
+		return {
+			kind: 'ok',
+			task: updated
+		};
 	} catch (error) {
-		return toErrorMessage(error, 'タスク期間の更新に失敗しました。');
+		return {
+			kind: 'error',
+			message: toErrorMessage(error, 'タスク期間の更新に失敗しました。')
+		};
 	}
 }
 

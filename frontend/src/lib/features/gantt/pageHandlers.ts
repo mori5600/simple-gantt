@@ -16,7 +16,6 @@ import {
 	runReorderTasksWorkflow,
 	runResolveMissingAssigneesWorkflow,
 	runSubmitTaskWorkflow,
-	runTaskActionWorkflow,
 	runTaskExportWorkflow,
 	runTaskImportWorkflow
 } from './actionWorkflows';
@@ -30,6 +29,7 @@ import {
 	withoutTaskDatePreview
 } from './state';
 import type { TaskDateRange } from './types';
+import { buildTaskRestoreInput, cloneTaskForUndo, type UndoTaskUpdate } from './undo';
 
 type GanttPageStore = Pick<GanttTasksStore, 'create' | 'load' | 'remove' | 'reorder' | 'update'>;
 
@@ -47,6 +47,7 @@ export type PendingImportState = {
  */
 export type GanttPageHandlerSnapshot = {
 	editingTaskId: string | null;
+	lastUndoAction: UndoTaskUpdate | null;
 	modalMode: ModalMode;
 	orderedTasks: Task[];
 	pendingImportRows: TaskImportRow[] | null;
@@ -76,12 +77,14 @@ export type GanttPageHandlerState = {
 	setIsImporting: (isImporting: boolean) => void;
 	setIsModalOpen: (isModalOpen: boolean) => void;
 	setIsSubmitting: (isSubmitting: boolean) => void;
+	setIsUndoing: (isUndoing: boolean) => void;
 	setModalMode: (mode: ModalMode) => void;
 	setPendingImportState: (state: PendingImportState) => void;
 	setSelectedProjectId: (projectId: string) => void;
 	setSelectedTaskId: (taskId: string | null) => void;
 	setTaskDatePreviews: (previews: Record<string, TaskDateRange>) => void;
 	setTaskForm: (form: TaskFormInput) => void;
+	setUndoAction: (action: UndoTaskUpdate | null) => void;
 };
 
 /**
@@ -111,6 +114,7 @@ export type GanttPageHandlers = {
 	submitTask: (event: SubmitEvent) => Promise<void>;
 	deleteSelectedTask: () => Promise<void>;
 	commitTaskDateRange: (taskId: string, startDate: string, endDate: string) => Promise<void>;
+	undoLastChange: () => Promise<void>;
 	toggleFormAssignee: (userId: string) => void;
 	setTaskDatePreview: (taskId: string, startDate: string, endDate: string) => void;
 	clearTaskDatePreview: (taskId: string) => void;
@@ -133,13 +137,14 @@ export function createGanttPageHandlers(params: {
 		return `${path}?projectId=${encodeURIComponent(task.projectId)}`;
 	}
 
-	async function runTaskAction(action: () => Promise<string | null>): Promise<boolean> {
-		const result = await runTaskActionWorkflow(action);
-		state.setActionError(result.actionError);
-		state.setActionSuccess(result.actionSuccess);
-		return handleResultByKind(result, {
-			ok: () => true,
-			error: () => false
+	function clearUndoAction(): void {
+		state.setUndoAction(null);
+	}
+
+	function rememberUndoAction(previousTask: Task, updatedTask: Task): void {
+		state.setUndoAction({
+			previousTask: cloneTaskForUndo(previousTask),
+			appliedUpdatedAt: updatedTask.updatedAt
 		});
 	}
 
@@ -182,6 +187,7 @@ export function createGanttPageHandlers(params: {
 				return;
 			}
 
+			clearUndoAction();
 			state.setActionError('');
 			state.setActionSuccess('');
 			const result = await runChangeProjectWorkflow({
@@ -231,6 +237,7 @@ export function createGanttPageHandlers(params: {
 		},
 
 		async importTasks(file: File): Promise<void> {
+			clearUndoAction();
 			state.setActionError('');
 			state.setActionSuccess('');
 			state.setIsImporting(true);
@@ -274,6 +281,7 @@ export function createGanttPageHandlers(params: {
 		},
 
 		async createMissingUsersAndContinue(): Promise<void> {
+			clearUndoAction();
 			state.setActionError('');
 			state.setActionSuccess('');
 			state.setIsImporting(true);
@@ -310,6 +318,7 @@ export function createGanttPageHandlers(params: {
 		},
 
 		async reorderTasks(sourceTaskId: string, targetTaskId: string): Promise<void> {
+			clearUndoAction();
 			const snapshot = state.read();
 			const result = await runReorderTasksWorkflow({
 				store: deps.store,
@@ -354,6 +363,7 @@ export function createGanttPageHandlers(params: {
 
 		async submitTask(event: SubmitEvent): Promise<void> {
 			event.preventDefault();
+			clearUndoAction();
 			state.setIsSubmitting(true);
 			state.setFormError('');
 			state.setActionError('');
@@ -385,6 +395,7 @@ export function createGanttPageHandlers(params: {
 		},
 
 		async deleteSelectedTask(): Promise<void> {
+			clearUndoAction();
 			const snapshot = state.read();
 			const result = await runDeleteSelectedTaskWorkflow({
 				store: deps.store,
@@ -408,16 +419,73 @@ export function createGanttPageHandlers(params: {
 
 		async commitTaskDateRange(taskId: string, startDate: string, endDate: string): Promise<void> {
 			const snapshot = state.read();
-			await runTaskAction(() =>
-				runCommitTaskDateRangeWorkflow({
-					store: deps.store,
-					projectId: snapshot.selectedProjectId,
-					taskId,
-					startDate,
-					endDate,
-					sourceTask: snapshot.taskById.get(taskId) ?? null
-				})
-			);
+			const sourceTask = snapshot.taskById.get(taskId) ?? null;
+			clearUndoAction();
+			state.setActionError('');
+			state.setActionSuccess('');
+			const result = await runCommitTaskDateRangeWorkflow({
+				store: deps.store,
+				projectId: snapshot.selectedProjectId,
+				taskId,
+				startDate,
+				endDate,
+				sourceTask
+			});
+			handleResultByKind(result, {
+				error: (next) => {
+					state.setActionError(next.actionError);
+					state.setActionSuccess(next.actionSuccess);
+				},
+				ok: (next) => {
+					if (sourceTask) {
+						rememberUndoAction(sourceTask, next.task);
+					}
+					state.setActionError(next.actionError);
+					state.setActionSuccess('');
+				}
+			});
+		},
+
+		async undoLastChange(): Promise<void> {
+			const snapshot = state.read();
+			const undoAction = snapshot.lastUndoAction;
+			if (!undoAction) {
+				return;
+			}
+
+			const currentTask = snapshot.taskById.get(undoAction.previousTask.id) ?? null;
+			if (!currentTask) {
+				clearUndoAction();
+				state.setActionError('元に戻す対象のタスクが見つかりません。');
+				state.setActionSuccess('');
+				return;
+			}
+			if (currentTask.updatedAt !== undoAction.appliedUpdatedAt) {
+				clearUndoAction();
+				state.setActionError('直前の変更後にタスクが更新されたため、元に戻せません。');
+				state.setActionSuccess('');
+				return;
+			}
+
+			state.setIsUndoing(true);
+			state.setActionError('');
+			state.setActionSuccess('');
+			try {
+				await deps.store.update(
+					undoAction.previousTask.projectId,
+					undoAction.previousTask.id,
+					buildTaskRestoreInput(undoAction.previousTask, currentTask.updatedAt)
+				);
+				clearUndoAction();
+				state.setSelectedTaskId(undoAction.previousTask.id);
+				state.setActionSuccess('');
+			} catch (error) {
+				state.setActionError(
+					error instanceof Error ? error.message : '直前の変更を元に戻せませんでした。'
+				);
+			} finally {
+				state.setIsUndoing(false);
+			}
 		},
 
 		toggleFormAssignee(userId: string): void {

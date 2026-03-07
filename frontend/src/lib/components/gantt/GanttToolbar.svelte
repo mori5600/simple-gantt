@@ -16,12 +16,15 @@
 		isImporting,
 		exportDisabled,
 		isExporting,
+		hasUndoableChange,
+		isUndoing,
 		onProjectChange,
 		onCreate,
 		onEdit,
 		onDelete,
 		onJumpToToday,
 		onAutoFit,
+		onUndo,
 		onImport,
 		onExport,
 		onZoomChange
@@ -35,12 +38,15 @@
 		isImporting: boolean;
 		exportDisabled: boolean;
 		isExporting: boolean;
+		hasUndoableChange: boolean;
+		isUndoing: boolean;
 		onProjectChange: (projectId: string) => void;
 		onCreate: () => void;
 		onEdit: () => void;
 		onDelete: () => void;
 		onJumpToToday: () => void;
 		onAutoFit: () => void;
+		onUndo: () => void;
 		onImport: (file: File) => void;
 		onExport: (format: ExportFormat) => void;
 		onZoomChange: (zoom: ZoomLevel) => void;
@@ -252,6 +258,15 @@
 							title="タスクリストの列幅を自動調整"
 						>
 							Auto Fit
+						</button>
+						<button
+							type="button"
+							class="h-9 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+							onclick={onUndo}
+							disabled={!hasUndoableChange || isUndoing}
+							title="直前の変更を元に戻す"
+						>
+							{isUndoing ? 'Undo...' : 'Undo'}
 						</button>
 						<button
 							type="button"

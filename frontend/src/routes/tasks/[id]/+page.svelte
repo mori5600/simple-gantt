@@ -4,6 +4,11 @@
 	import { onMount } from 'svelte';
 	import { toggleAssignee, toCreateTaskInput, validateTaskForm } from '$lib/features/gantt/state';
 	import type { TaskFormInput } from '$lib/features/gantt/state';
+	import {
+		buildTaskRestoreInput,
+		cloneTaskForUndo,
+		type UndoTaskUpdate
+	} from '$lib/features/gantt/undo';
 	import { tasksRepo, type Task, type TaskHistoryEntry, type User } from '$lib/data/tasks/repo';
 
 	const EMPTY_TASK_FORM: TaskFormInput = {
@@ -31,11 +36,13 @@
 
 	let isLoading = $state(true);
 	let isSubmitting = $state(false);
+	let isUndoing = $state(false);
 	let error = $state('');
 	let success = $state('');
 	let users = $state<User[]>([]);
 	let tasks = $state<Task[]>([]);
 	let historyEntries = $state<TaskHistoryEntry[]>([]);
+	let lastUndoAction = $state<UndoTaskUpdate | null>(null);
 	let sourceUpdatedAt = $state('');
 	let taskTitle = $state('');
 	let taskForm = $state<TaskFormInput>({ ...EMPTY_TASK_FORM });
@@ -48,6 +55,26 @@
 	onMount(() => {
 		void loadEditData();
 	});
+
+	function applyTaskState(
+		task: Task,
+		loadedTasks: Task[],
+		loadedHistory: TaskHistoryEntry[]
+	): void {
+		tasks = loadedTasks;
+		historyEntries = loadedHistory;
+		taskTitle = task.title;
+		sourceUpdatedAt = task.updatedAt;
+		taskForm = {
+			title: task.title,
+			note: task.note,
+			startDate: task.startDate,
+			endDate: task.endDate,
+			progress: task.progress,
+			assigneeIds: [...task.assigneeIds],
+			predecessorTaskId: task.predecessorTaskId ?? ''
+		};
+	}
 
 	async function loadEditData(): Promise<void> {
 		const currentProjectId = projectId;
@@ -66,6 +93,7 @@
 		isLoading = true;
 		error = '';
 		success = '';
+		lastUndoAction = null;
 
 		try {
 			const [loadedTasks, loadedUsers, loadedHistory] = await Promise.all([
@@ -79,20 +107,8 @@
 				return;
 			}
 
-			tasks = loadedTasks;
 			users = loadedUsers;
-			historyEntries = loadedHistory;
-			taskTitle = task.title;
-			sourceUpdatedAt = task.updatedAt;
-			taskForm = {
-				title: task.title,
-				note: task.note,
-				startDate: task.startDate,
-				endDate: task.endDate,
-				progress: task.progress,
-				assigneeIds: [...task.assigneeIds],
-				predecessorTaskId: task.predecessorTaskId ?? ''
-			};
+			applyTaskState(task, loadedTasks, loadedHistory);
 		} catch (loadError) {
 			error =
 				loadError instanceof Error ? loadError.message : '編集データの読み込みに失敗しました。';
@@ -134,6 +150,11 @@
 		success = '';
 
 		try {
+			const sourceTask = tasks.find((task) => task.id === currentTaskId) ?? null;
+			if (!sourceTask) {
+				error = '編集対象のタスクが見つかりません。';
+				return;
+			}
 			const createInput = toCreateTaskInput({
 				title: taskForm.title,
 				note: taskForm.note,
@@ -155,24 +176,62 @@
 			]);
 			const latestTask = reloadedTasks.find((task) => task.id === currentTaskId) ?? updated;
 
-			tasks = reloadedTasks;
-			historyEntries = reloadedHistory;
-			taskTitle = latestTask.title;
-			sourceUpdatedAt = latestTask.updatedAt;
-			taskForm = {
-				title: latestTask.title,
-				note: latestTask.note,
-				startDate: latestTask.startDate,
-				endDate: latestTask.endDate,
-				progress: latestTask.progress,
-				assigneeIds: [...latestTask.assigneeIds],
-				predecessorTaskId: latestTask.predecessorTaskId ?? ''
+			applyTaskState(latestTask, reloadedTasks, reloadedHistory);
+			lastUndoAction = {
+				previousTask: cloneTaskForUndo(sourceTask),
+				appliedUpdatedAt: updated.updatedAt
 			};
 			success = 'タスクを更新しました。';
 		} catch (updateError) {
 			error = updateError instanceof Error ? updateError.message : 'タスク更新に失敗しました。';
 		} finally {
 			isSubmitting = false;
+		}
+	}
+
+	async function undoLastChange(): Promise<void> {
+		const currentProjectId = projectId;
+		const currentTaskId = taskId;
+		if (!currentProjectId || !currentTaskId || !lastUndoAction) {
+			return;
+		}
+
+		const currentTask = tasks.find((task) => task.id === currentTaskId) ?? null;
+		if (!currentTask) {
+			lastUndoAction = null;
+			error = '元に戻す対象のタスクが見つかりません。';
+			success = '';
+			return;
+		}
+		if (currentTask.updatedAt !== lastUndoAction.appliedUpdatedAt) {
+			lastUndoAction = null;
+			error = '直前の変更後にタスクが更新されたため、元に戻せません。';
+			success = '';
+			return;
+		}
+
+		isUndoing = true;
+		error = '';
+		success = '';
+		try {
+			const restored = await tasksRepo.update(
+				currentProjectId,
+				currentTaskId,
+				buildTaskRestoreInput(lastUndoAction.previousTask, currentTask.updatedAt)
+			);
+			const [reloadedTasks, reloadedHistory] = await Promise.all([
+				tasksRepo.list(currentProjectId),
+				tasksRepo.listTaskHistory(currentProjectId, currentTaskId)
+			]);
+			const latestTask = reloadedTasks.find((task) => task.id === currentTaskId) ?? restored;
+
+			applyTaskState(latestTask, reloadedTasks, reloadedHistory);
+			lastUndoAction = null;
+			success = '直前の変更を元に戻しました。';
+		} catch (undoError) {
+			error = undoError instanceof Error ? undoError.message : '直前の変更を元に戻せませんでした。';
+		} finally {
+			isUndoing = false;
 		}
 	}
 
@@ -331,7 +390,21 @@
 							<p class="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>
 						{/if}
 						{#if success}
-							<p class="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{success}</p>
+							<div
+								class="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700"
+							>
+								<span>{success}</span>
+								{#if lastUndoAction}
+									<button
+										type="button"
+										class="inline-flex h-8 shrink-0 items-center rounded-lg border border-emerald-300 bg-white px-3 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
+										onclick={() => void undoLastChange()}
+										disabled={isUndoing}
+									>
+										{isUndoing ? '元に戻し中...' : '元に戻す'}
+									</button>
+								{/if}
+							</div>
 						{/if}
 
 						<div class="mt-1 flex justify-end">

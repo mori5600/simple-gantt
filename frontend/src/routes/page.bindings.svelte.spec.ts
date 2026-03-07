@@ -54,6 +54,7 @@ type EffectsParams = {
 
 type HandlerState = {
 	setIsExporting: (value: boolean) => void;
+	setUndoAction: (value: { previousTask: Task; appliedUpdatedAt: string } | null) => void;
 };
 
 const harness = vi.hoisted(() => {
@@ -70,6 +71,7 @@ const harness = vi.hoisted(() => {
 		submitTask: vi.fn(async () => undefined),
 		deleteSelectedTask: vi.fn(async () => undefined),
 		commitTaskDateRange: vi.fn(async () => undefined),
+		undoLastChange: vi.fn(async () => undefined),
 		toggleFormAssignee: vi.fn(() => undefined),
 		setTaskDatePreview: vi.fn(() => undefined),
 		clearTaskDatePreview: vi.fn(() => undefined)
@@ -262,6 +264,15 @@ describe('/+page.svelte bindings', () => {
 		await expect.element(page.getByRole('button', { name: '出力' })).toBeDisabled();
 		harness.handlerState?.setIsExporting(false);
 		await expect.element(page.getByRole('button', { name: '出力' })).toBeEnabled();
+		await expect.element(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
+
+		harness.handlerState?.setUndoAction({
+			previousTask: taskFixture(),
+			appliedUpdatedAt: '2026-03-02T00:00:00.000Z'
+		});
+		await expect.element(page.getByRole('button', { name: 'Undo' })).toBeEnabled();
+		await page.getByRole('button', { name: 'Undo' }).click();
+		expect(harness.handlers.undoLastChange).toHaveBeenCalledTimes(1);
 
 		await page.getByRole('button', { name: '編集' }).click();
 		expect(harness.handlers.openTaskEditPage).toHaveBeenCalledTimes(1);

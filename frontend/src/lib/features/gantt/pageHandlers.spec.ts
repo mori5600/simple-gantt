@@ -49,6 +49,7 @@ function createStateHarness() {
 		state: {
 			read: () => ({
 				editingTaskId: null,
+				lastUndoAction: null,
 				modalMode: 'create',
 				orderedTasks: [],
 				pendingImportRows: null,
@@ -72,6 +73,7 @@ function createStateHarness() {
 			setIsImporting: vi.fn(),
 			setIsModalOpen: vi.fn(),
 			setIsSubmitting: vi.fn(),
+			setIsUndoing: vi.fn(),
 			setModalMode: vi.fn(),
 			setPendingImportState: vi.fn(),
 			setSelectedProjectId: vi.fn(),
@@ -81,7 +83,8 @@ function createStateHarness() {
 			},
 			setTaskForm: (form) => {
 				taskForm = form;
-			}
+			},
+			setUndoAction: vi.fn()
 		},
 		deps: {
 			store,

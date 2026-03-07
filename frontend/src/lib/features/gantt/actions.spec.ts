@@ -367,7 +367,10 @@ describe('gantt actions', () => {
 				endDate: '2026-02-21',
 				updatedAt: '2026-02-20T00:00:00.000Z'
 			})
-		).resolves.toBe('date update failed');
+		).resolves.toEqual({
+			kind: 'error',
+			message: 'date update failed'
+		});
 	});
 
 	it('changeProjectSelectionAction should keep previous project when loading next project fails', async () => {
@@ -425,7 +428,7 @@ describe('gantt actions', () => {
 		});
 	});
 
-	it('simple actions should return null on success and import/create-user helpers should cover edge cases', async () => {
+	it('simple actions should return success results and import/create-user helpers should cover edge cases', async () => {
 		store.reorder.mockResolvedValueOnce([]);
 		store.remove.mockResolvedValueOnce(undefined);
 		store.update.mockResolvedValueOnce(taskFixture());
@@ -454,7 +457,10 @@ describe('gantt actions', () => {
 				endDate: '2026-02-21',
 				updatedAt: '2026-02-20T00:00:00.000Z'
 			})
-		).resolves.toBeNull();
+		).resolves.toEqual({
+			kind: 'ok',
+			task: taskFixture()
+		});
 		await expect(
 			importTasksAction({
 				store,

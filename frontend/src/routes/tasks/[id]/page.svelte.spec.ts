@@ -97,6 +97,25 @@ describe('/tasks/[id]/+page.svelte', () => {
 		expect(updatedTask?.assigneeIds).toContain('user-sato');
 	});
 
+	it('should undo the latest saved task change', async () => {
+		render(TaskEditPage);
+
+		const titleInput = page.getByRole('textbox', { name: 'title' });
+		await titleInput.fill('要件確認 Undo');
+		await page.getByRole('button', { name: '保存' }).click();
+
+		await expect.element(page.getByText('タスクを更新しました。')).toBeInTheDocument();
+		await page.getByRole('button', { name: '元に戻す' }).click();
+
+		await expect.element(page.getByText('直前の変更を元に戻しました。')).toBeInTheDocument();
+
+		const restoredTask = (await tasksRepo.list('project-default')).find(
+			(task) => task.id === 'task-discovery'
+		);
+		expect(restoredTask?.title).toBe('要件確認');
+		await expect.element(page.getByRole('textbox', { name: 'title' })).toHaveValue('要件確認');
+	});
+
 	it('should validate required query params before loading', async () => {
 		mockedPage.url = new URL('http://localhost/tasks/task-discovery');
 		render(TaskEditPage);

@@ -3,6 +3,7 @@ import type { Task, User } from '$lib/data/tasks/repo';
 import type { TaskDateRange } from './types';
 import type { TaskFormInput } from './state';
 import type { TaskImportRow } from './import';
+import type { UndoTaskUpdate } from './undo';
 
 const workflowMocks = vi.hoisted(() => ({
 	runChangeProjectWorkflow: vi.fn(),
@@ -56,6 +57,7 @@ function pendingImportRowFixture(partial: Partial<TaskImportRow> = {}): TaskImpo
 function createHandlerHarness(
 	overrides: Partial<{
 		editingTaskId: string | null;
+		lastUndoAction: UndoTaskUpdate | null;
 		modalMode: 'create' | 'edit';
 		orderedTasks: Task[];
 		pendingImportRows: TaskImportRow[] | null;
@@ -81,6 +83,7 @@ function createHandlerHarness(
 	} satisfies TaskFormInput;
 	const snapshot = {
 		editingTaskId: null,
+		lastUndoAction: null as UndoTaskUpdate | null,
 		modalMode: 'create' as const,
 		orderedTasks: [taskFixture()],
 		pendingImportRows: null as TaskImportRow[] | null,
@@ -119,6 +122,7 @@ function createHandlerHarness(
 		setIsImporting: vi.fn(),
 		setIsModalOpen: vi.fn(),
 		setIsSubmitting: vi.fn(),
+		setIsUndoing: vi.fn(),
 		setModalMode: vi.fn((mode: 'create' | 'edit') => {
 			snapshot.modalMode = mode;
 		}),
@@ -137,6 +141,9 @@ function createHandlerHarness(
 		}),
 		setTaskForm: vi.fn((form: TaskFormInput) => {
 			snapshot.taskForm = form;
+		}),
+		setUndoAction: vi.fn((action: UndoTaskUpdate | null) => {
+			snapshot.lastUndoAction = action;
 		})
 	};
 	const deps = {
@@ -514,7 +521,11 @@ describe('pageHandlers workflow integration', () => {
 		const dateHarness = createHandlerHarness({
 			taskById: new Map<string, Task>([['task-2', taskFixture({ id: 'task-2' })]])
 		});
-		workflowMocks.runCommitTaskDateRangeWorkflow.mockResolvedValue('更新に失敗しました。');
+		workflowMocks.runCommitTaskDateRangeWorkflow.mockResolvedValue({
+			kind: 'error',
+			actionError: '更新に失敗しました。',
+			actionSuccess: ''
+		});
 
 		await dateHarness.handlers.commitTaskDateRange('task-2', '2026-03-10', '2026-03-12');
 
@@ -528,6 +539,110 @@ describe('pageHandlers workflow integration', () => {
 		});
 		expect(dateHarness.state.setActionError).toHaveBeenLastCalledWith('更新に失敗しました。');
 		expect(dateHarness.state.setActionSuccess).toHaveBeenLastCalledWith('');
+	});
+
+	it('commitTaskDateRange should remember undo state after a successful update', async () => {
+		const sourceTask = taskFixture({
+			id: 'task-2',
+			startDate: '2026-03-01',
+			endDate: '2026-03-03',
+			updatedAt: '2026-03-01T00:00:00.000Z'
+		});
+		const harness = createHandlerHarness({
+			taskById: new Map<string, Task>([['task-2', sourceTask]])
+		});
+		workflowMocks.runCommitTaskDateRangeWorkflow.mockResolvedValue({
+			kind: 'ok',
+			actionError: '',
+			actionSuccess: '',
+			task: taskFixture({
+				id: 'task-2',
+				startDate: '2026-03-10',
+				endDate: '2026-03-12',
+				updatedAt: '2026-03-02T00:00:00.000Z'
+			})
+		});
+
+		await harness.handlers.commitTaskDateRange('task-2', '2026-03-10', '2026-03-12');
+
+		expect(harness.state.setUndoAction).toHaveBeenLastCalledWith({
+			previousTask: sourceTask,
+			appliedUpdatedAt: '2026-03-02T00:00:00.000Z'
+		});
+		expect(harness.state.setActionSuccess).toHaveBeenLastCalledWith('');
+	});
+
+	it('undoLastChange should restore the previous task snapshot', async () => {
+		const previousTask = taskFixture({
+			id: 'task-2',
+			title: '元のタスク',
+			note: '元のメモ',
+			startDate: '2026-03-01',
+			endDate: '2026-03-03',
+			progress: 10,
+			assigneeIds: ['user-1'],
+			predecessorTaskId: 'task-9'
+		});
+		const currentTask = taskFixture({
+			id: 'task-2',
+			title: '更新後',
+			startDate: '2026-03-10',
+			endDate: '2026-03-12',
+			progress: 60,
+			updatedAt: '2026-03-02T00:00:00.000Z'
+		});
+		const harness = createHandlerHarness({
+			lastUndoAction: {
+				previousTask,
+				appliedUpdatedAt: '2026-03-02T00:00:00.000Z'
+			},
+			taskById: new Map<string, Task>([['task-2', currentTask]])
+		});
+		harness.deps.store.update.mockResolvedValue(previousTask);
+
+		await harness.handlers.undoLastChange();
+
+		expect(harness.deps.store.update).toHaveBeenCalledWith('project-1', 'task-2', {
+			title: '元のタスク',
+			note: '元のメモ',
+			startDate: '2026-03-01',
+			endDate: '2026-03-03',
+			progress: 10,
+			assigneeIds: ['user-1'],
+			predecessorTaskId: 'task-9',
+			updatedAt: '2026-03-02T00:00:00.000Z'
+		});
+		expect(harness.state.setIsUndoing).toHaveBeenNthCalledWith(1, true);
+		expect(harness.state.setIsUndoing).toHaveBeenLastCalledWith(false);
+		expect(harness.state.setUndoAction).toHaveBeenLastCalledWith(null);
+		expect(harness.state.setSelectedTaskId).toHaveBeenLastCalledWith('task-2');
+		expect(harness.state.setActionSuccess).toHaveBeenLastCalledWith('');
+	});
+
+	it('undoLastChange should reject stale undo tokens', async () => {
+		const harness = createHandlerHarness({
+			lastUndoAction: {
+				previousTask: taskFixture({ id: 'task-2' }),
+				appliedUpdatedAt: '2026-03-01T00:00:00.000Z'
+			},
+			taskById: new Map<string, Task>([
+				[
+					'task-2',
+					taskFixture({
+						id: 'task-2',
+						updatedAt: '2026-03-02T00:00:00.000Z'
+					})
+				]
+			])
+		});
+
+		await harness.handlers.undoLastChange();
+
+		expect(harness.state.setUndoAction).toHaveBeenCalledWith(null);
+		expect(harness.state.setActionError).toHaveBeenLastCalledWith(
+			'直前の変更後にタスクが更新されたため、元に戻せません。'
+		);
+		expect(harness.deps.store.update).not.toHaveBeenCalled();
 	});
 
 	it('deleteSelectedTask should preserve cleared feedback on successful deletion', async () => {

@@ -388,6 +388,61 @@ describe('/+page.svelte', () => {
 		});
 	});
 
+	it('should undo the latest task date change from the toolbar button', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-03-01T00:00:00.000Z'));
+		await tasksRepo.create('project-default', {
+			title: 'Undo確認',
+			note: '',
+			startDate: '2026-03-10',
+			endDate: '2026-03-12',
+			progress: 0,
+			assigneeIds: [],
+			predecessorTaskId: null
+		});
+		await renderPage();
+
+		const timelineTask = document.querySelector('button[title="Undo確認 / 担当: 未割り当て"]');
+		if (!(timelineTask instanceof HTMLButtonElement)) {
+			throw new Error('expected timeline task button');
+		}
+
+		timelineTask.dispatchEvent(
+			new PointerEvent('pointerdown', {
+				bubbles: true,
+				button: 0,
+				pointerId: 11,
+				clientX: 100
+			})
+		);
+		window.dispatchEvent(
+			new PointerEvent('pointermove', {
+				pointerId: 11,
+				clientX: 130
+			})
+		);
+		window.dispatchEvent(
+			new PointerEvent('pointerup', {
+				pointerId: 11
+			})
+		);
+
+		const undoButton = page.getByTitle('直前の変更を元に戻す', { exact: true });
+		await expect.element(undoButton).toBeEnabled();
+		await undoButton.click();
+
+		await vi.waitFor(async () => {
+			const restored = (await tasksRepo.list('project-default')).find(
+				(task) => task.title === 'Undo確認'
+			);
+			expect(restored).toMatchObject({
+				startDate: '2026-03-10',
+				endDate: '2026-03-12'
+			});
+		});
+		await expect.element(undoButton).toBeDisabled();
+	});
+
 	it('should cancel a pending import when unknown assignees are detected', async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date('2026-03-01T00:00:00.000Z'));

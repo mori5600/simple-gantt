@@ -20,12 +20,15 @@ function renderToolbar(
 		isImporting: boolean;
 		exportDisabled: boolean;
 		isExporting: boolean;
+		hasUndoableChange: boolean;
+		isUndoing: boolean;
 		onProjectChange: (projectId: string) => void;
 		onCreate: () => void;
 		onEdit: () => void;
 		onDelete: () => void;
 		onJumpToToday: () => void;
 		onAutoFit: () => void;
+		onUndo: () => void;
 		onImport: (file: File) => void;
 		onExport: (format: 'csv' | 'xlsx') => void;
 		onZoomChange: (zoom: 'day' | 'week' | 'month') => void;
@@ -42,12 +45,15 @@ function renderToolbar(
 			isImporting: false,
 			exportDisabled: false,
 			isExporting: false,
+			hasUndoableChange: false,
+			isUndoing: false,
 			onProjectChange: vi.fn(),
 			onCreate: vi.fn(),
 			onEdit: vi.fn(),
 			onDelete: vi.fn(),
 			onJumpToToday: vi.fn(),
 			onAutoFit: vi.fn(),
+			onUndo: vi.fn(),
 			onImport: vi.fn(),
 			onExport: vi.fn(),
 			onZoomChange: vi.fn(),
@@ -64,6 +70,7 @@ describe('GanttToolbar.svelte', () => {
 		const onDelete = vi.fn();
 		const onJumpToToday = vi.fn();
 		const onAutoFit = vi.fn();
+		const onUndo = vi.fn();
 		const onZoomChange = vi.fn();
 
 		renderToolbar({
@@ -73,6 +80,8 @@ describe('GanttToolbar.svelte', () => {
 			onDelete,
 			onJumpToToday,
 			onAutoFit,
+			onUndo,
+			hasUndoableChange: true,
 			onZoomChange
 		});
 
@@ -82,6 +91,7 @@ describe('GanttToolbar.svelte', () => {
 		await page.getByRole('button', { name: '削除' }).click();
 		await page.getByRole('button', { name: '今日' }).click();
 		await page.getByRole('button', { name: 'Auto Fit' }).click();
+		await page.getByRole('button', { name: 'Undo' }).click();
 		await page.getByRole('button', { name: 'Month' }).click();
 
 		expect(onProjectChange).toHaveBeenCalledWith('project-2');
@@ -90,6 +100,7 @@ describe('GanttToolbar.svelte', () => {
 		expect(onDelete).toHaveBeenCalledOnce();
 		expect(onJumpToToday).toHaveBeenCalledOnce();
 		expect(onAutoFit).toHaveBeenCalledOnce();
+		expect(onUndo).toHaveBeenCalledOnce();
 		expect(onZoomChange).toHaveBeenCalledWith('month');
 	});
 
@@ -107,6 +118,7 @@ describe('GanttToolbar.svelte', () => {
 		await expect.element(page.getByRole('button', { name: '削除' })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: '取込' })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: '出力' })).toBeDisabled();
+		await expect.element(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
 	});
 
 	it('should open export menu, emit selected format, and close on outside click', async () => {

@@ -15,6 +15,7 @@ import {
 	importTasksAction,
 	reorderTasksAction,
 	submitTaskAction,
+	type CommitTaskDateRangeResult,
 	type ChangeProjectSelectionResult,
 	type GanttTasksStore,
 	type ModalMode,
@@ -87,6 +88,13 @@ export type DeleteSelectedTaskWorkflowResult =
 	| { kind: 'noop' }
 	| { kind: 'error'; actionError: string; actionSuccess: '' }
 	| { kind: 'ok'; actionError: ''; actionSuccess: '' };
+
+/**
+ * タスク期間更新ワークフローの結果です。
+ */
+export type CommitTaskDateRangeWorkflowResult =
+	| { kind: 'error'; actionError: string; actionSuccess: '' }
+	| { kind: 'ok'; actionError: ''; actionSuccess: ''; task: Task };
 
 /**
  * 単一アクション実行ワークフローの結果です。
@@ -595,12 +603,20 @@ export function runCommitTaskDateRangeWorkflow(params: {
 	startDate: string;
 	endDate: string;
 	sourceTask: Task | null;
-}): Promise<string | null> {
+}): Promise<CommitTaskDateRangeWorkflowResult> {
 	if (!params.projectId) {
-		return Promise.resolve('プロジェクトを選択してください。');
+		return Promise.resolve({
+			kind: 'error',
+			actionError: 'プロジェクトを選択してください。',
+			actionSuccess: ''
+		});
 	}
 	if (!params.sourceTask) {
-		return Promise.resolve(null);
+		return Promise.resolve({
+			kind: 'error',
+			actionError: '更新対象のタスクが見つかりません。',
+			actionSuccess: ''
+		});
 	}
 	return commitTaskDateRangeAction({
 		store: params.store,
@@ -609,7 +625,25 @@ export function runCommitTaskDateRangeWorkflow(params: {
 		startDate: params.startDate,
 		endDate: params.endDate,
 		updatedAt: params.sourceTask.updatedAt
-	});
+	}).then((result: CommitTaskDateRangeResult) =>
+		handleResultByKind(result, {
+			error: (next) => {
+				return {
+					kind: 'error',
+					actionError: next.message,
+					actionSuccess: ''
+				};
+			},
+			ok: (next) => {
+				return {
+					kind: 'ok',
+					actionError: '',
+					actionSuccess: '',
+					task: next.task
+				};
+			}
+		})
+	);
 }
 
 /**

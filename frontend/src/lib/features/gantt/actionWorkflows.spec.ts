@@ -285,7 +285,65 @@ describe('actionWorkflows', () => {
 				endDate: '2026-02-21',
 				sourceTask: taskFixture()
 			})
-		).resolves.toBe('プロジェクトを選択してください。');
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'プロジェクトを選択してください。',
+			actionSuccess: ''
+		});
+	});
+
+	it('runCommitTaskDateRangeWorkflow should validate missing tasks and return updated tasks on success', async () => {
+		const store = {
+			update: vi.fn().mockResolvedValue(
+				taskFixture({
+					startDate: '2026-02-22',
+					endDate: '2026-02-23',
+					updatedAt: '2026-02-21T00:00:00.000Z'
+				})
+			)
+		};
+
+		await expect(
+			runCommitTaskDateRangeWorkflow({
+				store,
+				projectId: 'project-1',
+				taskId: 'task-1',
+				startDate: '2026-02-22',
+				endDate: '2026-02-23',
+				sourceTask: null
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: '更新対象のタスクが見つかりません。',
+			actionSuccess: ''
+		});
+
+		await expect(
+			runCommitTaskDateRangeWorkflow({
+				store,
+				projectId: 'project-1',
+				taskId: 'task-1',
+				startDate: '2026-02-22',
+				endDate: '2026-02-23',
+				sourceTask: taskFixture({
+					updatedAt: '2026-02-20T00:00:00.000Z'
+				})
+			})
+		).resolves.toEqual({
+			kind: 'ok',
+			actionError: '',
+			actionSuccess: '',
+			task: taskFixture({
+				startDate: '2026-02-22',
+				endDate: '2026-02-23',
+				updatedAt: '2026-02-21T00:00:00.000Z'
+			})
+		});
+		expect(store.update).toHaveBeenCalledWith('project-1', 'task-1', {
+			startDate: '2026-02-22',
+			endDate: '2026-02-23',
+			updatedAt: '2026-02-20T00:00:00.000Z'
+		});
 	});
 
 	it('runReorderTasksWorkflow should validate projectId and apply reorder result', async () => {
@@ -817,7 +875,11 @@ describe('actionWorkflows', () => {
 				endDate: '2026-02-21',
 				sourceTask: null
 			})
-		).resolves.toBeNull();
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: '更新対象のタスクが見つかりません。',
+			actionSuccess: ''
+		});
 	});
 
 	it('mergeUsersById should deduplicate by user id using last entry', () => {
