@@ -11,7 +11,7 @@
 `simple-gantt` は、プロジェクト単位でタスクを管理するシンプルなガントチャートアプリです。
 主に小規模チームでの利用を想定し、ローカル環境または LAN 内で運用できます。
 
-<img width="1915" height="613" alt="image" src="https://github.com/user-attachments/assets/b10d881a-ae25-49b0-bc35-e33e90a6b408" />
+<img width="2880" height="1566" alt="cap" src="https://github.com/user-attachments/assets/9f1ed284-47fc-40e2-8e2c-06047b1b3152" />
 
 ### 主な機能
 
