@@ -198,6 +198,57 @@ describe('actionWorkflows', () => {
 		expect(store.create).toHaveBeenCalledTimes(1);
 	});
 
+	it('runSubmitTaskWorkflow should surface validation and submit action errors', async () => {
+		const store = {
+			create: vi.fn(),
+			update: vi.fn()
+		};
+
+		await expect(
+			runSubmitTaskWorkflow({
+				store,
+				mode: 'create',
+				projectId: 'project-1',
+				taskForm: {
+					title: '新規タスク',
+					note: '',
+					startDate: '2026-02-22',
+					endDate: '2026-02-21',
+					progress: 10,
+					assigneeIds: [],
+					predecessorTaskId: ''
+				},
+				editingTaskId: null,
+				sourceTask: null
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			formError: '開始日は終了日以前にしてください。'
+		});
+
+		await expect(
+			runSubmitTaskWorkflow({
+				store,
+				mode: 'edit',
+				projectId: 'project-1',
+				taskForm: {
+					title: '更新',
+					note: '',
+					startDate: '2026-02-20',
+					endDate: '2026-02-21',
+					progress: 10,
+					assigneeIds: [],
+					predecessorTaskId: ''
+				},
+				editingTaskId: null,
+				sourceTask: null
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			formError: '編集対象のタスクが見つかりません。'
+		});
+	});
+
 	it('runTaskActionWorkflow should map success and error results to feedback', async () => {
 		await expect(runTaskActionWorkflow(async () => null)).resolves.toEqual({
 			kind: 'ok',
@@ -399,6 +450,54 @@ describe('actionWorkflows', () => {
 		expect(result.drafts[0]?.createInput.assigneeIds).toEqual(['user-1']);
 	});
 
+	it('runPrepareTaskImportWorkflow should surface missing project and parse failures', async () => {
+		const brokenFile = {
+			name: 'broken.csv',
+			text: vi.fn(async () => {
+				throw new Error('boom');
+			})
+		} as unknown as File;
+
+		await expect(
+			runPrepareTaskImportWorkflow({
+				projectId: '',
+				file: csvFile(''),
+				projectMembers: [userFixture()],
+				existingTaskIds: new Set<string>()
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'プロジェクトを選択してください。',
+			actionSuccess: ''
+		});
+
+		await expect(
+			runPrepareTaskImportWorkflow({
+				projectId: 'project-1',
+				file: csvFile('bad'),
+				projectMembers: [userFixture()],
+				existingTaskIds: new Set<string>()
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: '必須列 "title" が見つかりません。',
+			actionSuccess: ''
+		});
+
+		await expect(
+			runPrepareTaskImportWorkflow({
+				projectId: 'project-1',
+				file: brokenFile,
+				projectMembers: [userFixture()],
+				existingTaskIds: new Set<string>()
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'boom',
+			actionSuccess: ''
+		});
+	});
+
 	it('runResolveMissingAssigneesWorkflow should return noop when there is nothing pending', async () => {
 		const result = await runResolveMissingAssigneesWorkflow({
 			projectId: 'project-1',
@@ -454,6 +553,111 @@ describe('actionWorkflows', () => {
 		expect(reloadProject).toHaveBeenCalledWith('project-1');
 	});
 
+	it('runResolveMissingAssigneesWorkflow should reuse known users and surface downstream failures', async () => {
+		const rows = parseTaskImportCsv(
+			[
+				'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+				'task-1,要件確認,2026-02-20,2026-02-21,40,田中,,'
+			].join('\n')
+		);
+		const knownUser = userFixture({ id: 'user-2', name: '田中' });
+
+		await expect(
+			runResolveMissingAssigneesWorkflow({
+				projectId: '',
+				rows,
+				missingAssigneeNames: ['田中'],
+				users: [knownUser],
+				projectMembers: [],
+				existingTaskIds: new Set<string>(),
+				createUser: vi.fn(),
+				setProjectMembers: vi.fn(),
+				reloadProject: vi.fn()
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'プロジェクトを選択してください。',
+			actionSuccess: ''
+		});
+
+		const setProjectMembers = vi.fn().mockResolvedValue([]);
+		const reloadProject = vi.fn().mockResolvedValue([]);
+		const ready = await runResolveMissingAssigneesWorkflow({
+			projectId: 'project-1',
+			rows,
+			missingAssigneeNames: ['田中'],
+			users: [knownUser],
+			projectMembers: [],
+			existingTaskIds: new Set<string>(),
+			createUser: vi.fn(),
+			setProjectMembers,
+			reloadProject
+		});
+		expect(ready.kind).toBe('ready');
+		expect(setProjectMembers).toHaveBeenCalledWith('project-1', ['user-2']);
+
+		await expect(
+			runResolveMissingAssigneesWorkflow({
+				projectId: 'project-1',
+				rows,
+				missingAssigneeNames: ['山田'],
+				users: [],
+				projectMembers: [],
+				existingTaskIds: new Set<string>(),
+				createUser: vi.fn().mockRejectedValue(new Error('create fail')),
+				setProjectMembers: vi.fn(),
+				reloadProject: vi.fn()
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'create fail',
+			actionSuccess: ''
+		});
+
+		await expect(
+			runResolveMissingAssigneesWorkflow({
+				projectId: 'project-1',
+				rows,
+				missingAssigneeNames: ['田中'],
+				users: [knownUser],
+				projectMembers: [],
+				existingTaskIds: new Set<string>(),
+				createUser: vi.fn(),
+				setProjectMembers: vi.fn().mockRejectedValue(new Error('member fail')),
+				reloadProject: vi.fn()
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'member fail',
+			actionSuccess: ''
+		});
+
+		const unresolvedRows = parseTaskImportCsv(
+			[
+				'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+				'task-1,要件確認,2026-02-20,2026-02-21,40,田中,,',
+				'task-2,実装,2026-02-22,2026-02-23,20,佐藤,,'
+			].join('\n')
+		);
+		await expect(
+			runResolveMissingAssigneesWorkflow({
+				projectId: 'project-1',
+				rows: unresolvedRows,
+				missingAssigneeNames: ['田中'],
+				users: [],
+				projectMembers: [],
+				existingTaskIds: new Set<string>(),
+				createUser: vi.fn().mockResolvedValue(knownUser),
+				setProjectMembers: vi.fn().mockResolvedValue([]),
+				reloadProject: vi.fn().mockResolvedValue([])
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: '担当者が未登録です: 佐藤',
+			actionSuccess: ''
+		});
+	});
+
 	it('runTaskImportWorkflow should include created user count in success message', async () => {
 		const store = {
 			create: vi.fn().mockResolvedValueOnce(taskFixture({ id: 'task-10' })),
@@ -487,6 +691,133 @@ describe('actionWorkflows', () => {
 			selectedTaskId: null,
 			clearPendingImport: true
 		});
+	});
+
+	it('runTaskImportWorkflow should return plain success and error results', async () => {
+		const successStore = {
+			create: vi.fn().mockResolvedValue(taskFixture({ id: 'task-11' })),
+			update: vi.fn()
+		};
+		await expect(
+			runTaskImportWorkflow({
+				store: successStore,
+				projectId: 'project-1',
+				drafts: [
+					{
+						sourceTaskId: null,
+						predecessorSourceTaskId: null,
+						createInput: {
+							title: '要件確認',
+							note: '',
+							startDate: '2026-02-20',
+							endDate: '2026-02-21',
+							progress: 40,
+							assigneeIds: [],
+							predecessorTaskId: null
+						}
+					}
+				]
+			})
+		).resolves.toEqual({
+			kind: 'ok',
+			actionSuccess: '1 件のタスクを取り込みました。',
+			selectedTaskId: null,
+			clearPendingImport: true
+		});
+
+		const errorStore = {
+			create: vi.fn().mockRejectedValue(new Error('import fail')),
+			update: vi.fn()
+		};
+		await expect(
+			runTaskImportWorkflow({
+				store: errorStore,
+				projectId: 'project-1',
+				drafts: [
+					{
+						sourceTaskId: null,
+						predecessorSourceTaskId: null,
+						createInput: {
+							title: '要件確認',
+							note: '',
+							startDate: '2026-02-20',
+							endDate: '2026-02-21',
+							progress: 40,
+							assigneeIds: [],
+							predecessorTaskId: null
+						}
+					}
+				]
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'import fail'
+		});
+	});
+
+	it('runReorderTasksWorkflow, export, delete, and commit should cover failure branches', async () => {
+		await expect(
+			runReorderTasksWorkflow({
+				store: {
+					reorder: vi.fn().mockRejectedValue(new Error('reorder fail'))
+				},
+				projectId: 'project-1',
+				orderedTasks: [
+					taskFixture({ id: 'task-1', sortOrder: 0 }),
+					taskFixture({ id: 'task-2', sortOrder: 1 })
+				],
+				sourceTaskId: 'task-1',
+				targetTaskId: 'task-2'
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'reorder fail',
+			actionSuccess: ''
+		});
+
+		exportMocks.exportTasksAsCsv.mockImplementationOnce(() => {
+			throw new Error('export fail');
+		});
+		await expect(
+			runTaskExportWorkflow({
+				format: 'csv',
+				projectId: 'project-1',
+				projectName: 'P1',
+				tasks: [taskFixture()],
+				users: [userFixture()],
+				isBrowser: true
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'export fail'
+		});
+
+		await expect(
+			runDeleteSelectedTaskWorkflow({
+				store: {
+					remove: vi.fn().mockRejectedValue(new Error('delete fail'))
+				},
+				projectId: 'project-1',
+				targetTask: taskFixture({ id: 'task-1', title: '要件確認' }),
+				isBrowser: true,
+				confirmDelete: () => true
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			actionError: 'delete fail',
+			actionSuccess: ''
+		});
+
+		await expect(
+			runCommitTaskDateRangeWorkflow({
+				store: { update: vi.fn() },
+				projectId: 'project-1',
+				taskId: 'task-1',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				sourceTask: null
+			})
+		).resolves.toBeNull();
 	});
 
 	it('mergeUsersById should deduplicate by user id using last entry', () => {

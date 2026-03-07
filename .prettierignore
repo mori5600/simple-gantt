@@ -9,6 +9,8 @@ bun.lockb
 /frontend/static/
 /frontend/.svelte-kit/
 /frontend/build/
+/frontend/coverage/
+/coverage/
 .svelte-kit/
 .env
 .env.*

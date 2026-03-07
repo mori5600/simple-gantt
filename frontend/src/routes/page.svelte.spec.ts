@@ -25,6 +25,38 @@ async function renderPage(): Promise<void> {
 	await expect.element(page.getByTitle('要件確認', { exact: true })).toBeInTheDocument();
 }
 
+function queryInput(selector: string): HTMLInputElement {
+	const input = document.querySelector(selector);
+	if (!(input instanceof HTMLInputElement)) {
+		throw new Error(`expected input: ${selector}`);
+	}
+	return input;
+}
+
+function queryTextarea(selector: string): HTMLTextAreaElement {
+	const textarea = document.querySelector(selector);
+	if (!(textarea instanceof HTMLTextAreaElement)) {
+		throw new Error(`expected textarea: ${selector}`);
+	}
+	return textarea;
+}
+
+function querySelect(selector: string): HTMLSelectElement {
+	const select = document.querySelector(selector);
+	if (!(select instanceof HTMLSelectElement)) {
+		throw new Error(`expected select: ${selector}`);
+	}
+	return select;
+}
+
+function extractPaneWidth(styleValue: string | null): number {
+	const match = styleValue?.match(/--task-pane-width:\s*(\d+)px/);
+	if (!match) {
+		throw new Error(`expected pane width in style: ${styleValue}`);
+	}
+	return Number(match[1]);
+}
+
 describe('/+page.svelte', () => {
 	beforeEach(() => {
 		resetTaskCacheForTest();
@@ -165,6 +197,267 @@ describe('/+page.svelte', () => {
 
 		await page.getByRole('button', { name: 'close' }).click();
 		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	it('should create a task through the modal and persist all edited fields', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-03-01T00:00:00.000Z'));
+		await renderPage();
+
+		await page.getByRole('button', { name: 'タスク追加' }).click();
+
+		const titleInput = queryInput('input[name="taskTitle"]');
+		const noteInput = queryTextarea('textarea[name="taskNote"]');
+		const startDateInput = queryInput('input[name="taskStartDate"]');
+		const endDateInput = queryInput('input[name="taskEndDate"]');
+		const progressInput = queryInput('input[name="taskProgress"]');
+		const predecessorSelect = querySelect('select[name="taskPredecessorTaskId"]');
+		const assigneeCheckbox = queryInput('input[type="checkbox"][value="user-ito"]');
+
+		titleInput.value = '追加タスク';
+		titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+		noteInput.value = '追加メモ';
+		noteInput.dispatchEvent(new Event('input', { bubbles: true }));
+		startDateInput.value = '2026-03-10';
+		startDateInput.dispatchEvent(new Event('input', { bubbles: true }));
+		endDateInput.value = '2026-03-12';
+		endDateInput.dispatchEvent(new Event('input', { bubbles: true }));
+		progressInput.value = '55';
+		progressInput.dispatchEvent(new Event('input', { bubbles: true }));
+		predecessorSelect.value = 'task-discovery';
+		predecessorSelect.dispatchEvent(new Event('change', { bubbles: true }));
+		assigneeCheckbox.checked = true;
+		assigneeCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+		const modalForm = document.querySelector('[role="dialog"] form');
+		if (!(modalForm instanceof HTMLFormElement)) {
+			throw new Error('expected modal form');
+		}
+		modalForm.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+
+		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+		await expect.element(page.getByTitle('追加タスク', { exact: true })).toBeInTheDocument();
+
+		const created = (await tasksRepo.list('project-default')).find(
+			(task) => task.title === '追加タスク'
+		);
+		expect(created).toMatchObject({
+			note: '追加メモ',
+			startDate: '2026-03-10',
+			endDate: '2026-03-12',
+			progress: 55,
+			assigneeIds: ['user-ito'],
+			predecessorTaskId: 'task-discovery'
+		});
+	});
+
+	it('should apply assignee, status, and date range filters', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-03-01T00:00:00.000Z'));
+		await renderPage();
+
+		await page.getByRole('combobox', { name: 'Assignee' }).selectOptions('user-ito');
+		await page.getByRole('combobox', { name: 'Status' }).selectOptions('complete');
+
+		const fromInput = queryInput('input[name="taskFilterRangeStart"]');
+		const toInput = queryInput('input[name="taskFilterRangeEnd"]');
+		fromInput.value = '2026-02-27';
+		fromInput.dispatchEvent(new Event('input', { bubbles: true }));
+		toInput.value = '2026-03-02';
+		toInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+		await expect.element(page.getByText('1 / 2 tasks')).toBeInTheDocument();
+		await expect.element(page.getByTitle('要件確認', { exact: true })).toBeInTheDocument();
+		await expect.element(page.getByTitle('UI実装', { exact: true })).not.toBeInTheDocument();
+
+		await vi.waitFor(() => {
+			expect(JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) as string)).toEqual({
+				query: '',
+				assignee: 'user-ito',
+				status: 'complete',
+				rangeStart: '2026-02-27',
+				rangeEnd: '2026-03-02'
+			});
+		});
+	});
+
+	it('should delete the selected task after confirmation', async () => {
+		const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+		await renderPage();
+
+		await page.getByRole('button', { name: '削除' }).click();
+
+		expect(confirmSpy).toHaveBeenCalledWith('"要件確認" を削除します。よろしいですか？');
+		await vi.waitFor(async () => {
+			const tasks = await tasksRepo.list('project-default');
+			expect(tasks.some((task) => task.title === '要件確認')).toBe(false);
+		});
+		await expect.element(page.getByText('1 / 1 tasks')).toBeInTheDocument();
+		confirmSpy.mockRestore();
+	});
+
+	it('should resize the task list pane and restore widths with auto fit', async () => {
+		await renderPage();
+
+		const grid = document.querySelector('main > div');
+		if (!(grid instanceof HTMLDivElement)) {
+			throw new Error('expected grid container');
+		}
+
+		const initialWidth = extractPaneWidth(grid.getAttribute('style'));
+
+		const handle = page.getByRole('button', { name: 'Resize task column' }).element();
+		handle.dispatchEvent(
+			new PointerEvent('pointerdown', {
+				bubbles: true,
+				button: 0,
+				pointerId: 1,
+				clientX: 100
+			})
+		);
+		window.dispatchEvent(
+			new PointerEvent('pointermove', {
+				pointerId: 1,
+				clientX: 40
+			})
+		);
+		window.dispatchEvent(
+			new PointerEvent('pointerup', {
+				pointerId: 1
+			})
+		);
+
+		await vi.waitFor(() => {
+			expect(extractPaneWidth(grid.getAttribute('style'))).toBeLessThan(initialWidth);
+		});
+
+		await page.getByRole('button', { name: 'Auto Fit' }).click();
+
+		await vi.waitFor(() => {
+			expect(extractPaneWidth(grid.getAttribute('style'))).toBe(initialWidth);
+		});
+	});
+
+	it('should commit task date changes when dragging a timeline bar', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-03-01T00:00:00.000Z'));
+		await tasksRepo.create('project-default', {
+			title: 'ドラッグ確認',
+			note: '',
+			startDate: '2026-03-10',
+			endDate: '2026-03-12',
+			progress: 0,
+			assigneeIds: [],
+			predecessorTaskId: null
+		});
+		await renderPage();
+
+		const timelineTask = document.querySelector('button[title="ドラッグ確認 / 担当: 未割り当て"]');
+		if (!(timelineTask instanceof HTMLButtonElement)) {
+			throw new Error('expected timeline task button');
+		}
+
+		timelineTask.dispatchEvent(
+			new PointerEvent('pointerdown', {
+				bubbles: true,
+				button: 0,
+				pointerId: 9,
+				clientX: 100
+			})
+		);
+		window.dispatchEvent(
+			new PointerEvent('pointermove', {
+				pointerId: 9,
+				clientX: 130
+			})
+		);
+		window.dispatchEvent(
+			new PointerEvent('pointerup', {
+				pointerId: 9
+			})
+		);
+
+		await vi.waitFor(async () => {
+			const updated = (await tasksRepo.list('project-default')).find(
+				(task) => task.title === 'ドラッグ確認'
+			);
+			expect(updated).toMatchObject({
+				startDate: '2026-03-11',
+				endDate: '2026-03-13'
+			});
+		});
+	});
+
+	it('should cancel a pending import when unknown assignees are detected', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-03-01T00:00:00.000Z'));
+		await renderPage();
+
+		const input = queryInput('#gantt-import-file');
+		const file = new File(
+			[
+				[
+					'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+					',保留取込,2026-03-20,2026-03-21,0,新規担当者,,'
+				].join('\n')
+			],
+			'pending.csv',
+			{ type: 'text/csv' }
+		);
+		Object.defineProperty(input, 'files', {
+			value: [file],
+			configurable: true
+		});
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+
+		await expect.element(page.getByText('未登録担当者が見つかりました (1 名)')).toBeInTheDocument();
+		await expect.element(page.getByText('新規担当者')).toBeInTheDocument();
+
+		await page.getByRole('button', { name: 'キャンセル' }).click();
+
+		await expect
+			.element(page.getByText('未登録担当者が見つかりました (1 名)'))
+			.not.toBeInTheDocument();
+		await expect.element(page.getByText('取り込みをキャンセルしました。')).toBeInTheDocument();
+	});
+
+	it('should create missing users and continue importing tasks', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-03-01T00:00:00.000Z'));
+		await renderPage();
+
+		const input = queryInput('#gantt-import-file');
+		const file = new File(
+			[
+				[
+					'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+					',継続取込,2026-03-22,2026-03-24,10,新規担当者B,,取込メモ'
+				].join('\n')
+			],
+			'continue.csv',
+			{ type: 'text/csv' }
+		);
+		Object.defineProperty(input, 'files', {
+			value: [file],
+			configurable: true
+		});
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+
+		await expect.element(page.getByText('未登録担当者が見つかりました (1 名)')).toBeInTheDocument();
+		await page.getByRole('button', { name: '不足ユーザーを作成して続行' }).click();
+
+		await expect.element(page.getByTitle('継続取込', { exact: true })).toBeInTheDocument();
+		await expect
+			.element(page.getByText('1 件のタスクを取り込みました。1 名のユーザーを作成しました。'))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByText('未登録担当者が見つかりました (1 名)'))
+			.not.toBeInTheDocument();
+
+		const users = await tasksRepo.listUsers();
+		const members = await tasksRepo.listProjectMembers('project-default');
+		expect(users.some((user) => user.name === '新規担当者B')).toBe(true);
+		expect(members.some((user) => user.name === '新規担当者B')).toBe(true);
 	});
 
 	it('should keep edit button enabled when task is selected', async () => {

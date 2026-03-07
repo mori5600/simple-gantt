@@ -1,7 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Task, User } from '$lib/data/tasks/repo';
+const xlsxMock = vi.hoisted(() => ({
+	utils: {
+		book_new: vi.fn(() => ({ sheets: [] })),
+		aoa_to_sheet: vi.fn((rows: unknown[][]) => ({ rows })),
+		book_append_sheet: vi.fn()
+	},
+	write: vi.fn(() => new Uint8Array([1, 2, 3]))
+}));
+
+vi.mock('xlsx', () => xlsxMock);
+
 import {
 	buildTaskExportFileBaseName,
+	exportTasksAsCsv,
+	exportTasksAsXlsx,
 	toTaskExportCsv,
 	toTaskExportRows,
 	toTaskExportSheetData
@@ -41,7 +54,51 @@ const tasks: Task[] = [
 	}
 ];
 
+function createDownloadHarness() {
+	const anchor = {
+		href: '',
+		download: '',
+		style: {
+			display: ''
+		},
+		click: vi.fn(),
+		remove: vi.fn()
+	};
+	const append = vi.fn();
+	const createElement = vi.fn(() => anchor);
+	const createObjectURL = vi.fn((blob: Blob) => {
+		void blob;
+		return 'blob:test';
+	});
+	const revokeObjectURL = vi.fn();
+
+	vi.stubGlobal('document', {
+		createElement,
+		body: { append }
+	});
+	vi.stubGlobal('URL', {
+		createObjectURL,
+		revokeObjectURL
+	});
+
+	return {
+		anchor,
+		append,
+		createElement,
+		createObjectURL,
+		revokeObjectURL
+	};
+}
+
 describe('task export helpers', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
 	it('toTaskExportRows should resolve assignee names and predecessor title', () => {
 		const rows = toTaskExportRows({
 			projectId: 'project-1',
@@ -127,5 +184,82 @@ describe('task export helpers', () => {
 			new Date(2026, 1, 22, 1, 2, 3)
 		);
 		expect(fileBaseName).toBe('tasks-営業-案件-20260222-010203');
+	});
+
+	it('exportTasksAsCsv should trigger a browser download with csv content', async () => {
+		const downloadHarness = createDownloadHarness();
+		const filename = exportTasksAsCsv(
+			{
+				projectId: 'project-1',
+				projectName: 'Simple Project',
+				tasks,
+				users
+			},
+			new Date(2026, 1, 22, 1, 2, 3)
+		);
+
+		expect(filename).toBe('tasks-Simple_Project-20260222-010203.csv');
+		expect(downloadHarness.createElement).toHaveBeenCalledWith('a');
+		expect(downloadHarness.anchor.download).toBe(filename);
+		expect(downloadHarness.anchor.href).toBe('blob:test');
+		expect(downloadHarness.append).toHaveBeenCalledWith(downloadHarness.anchor);
+		expect(downloadHarness.anchor.click).toHaveBeenCalledOnce();
+		expect(downloadHarness.anchor.remove).toHaveBeenCalledOnce();
+		expect(downloadHarness.revokeObjectURL).toHaveBeenCalledWith('blob:test');
+		const csvBlob = downloadHarness.createObjectURL.mock.calls.at(0)?.[0];
+		expect(csvBlob).toBeInstanceOf(Blob);
+		if (!(csvBlob instanceof Blob)) {
+			throw new Error('expected csv export to create a Blob');
+		}
+		expect(csvBlob.type).toBe('text/csv;charset=utf-8');
+		await expect(csvBlob.text()).resolves.toContain('進捗(%)');
+	});
+
+	it('exportTasksAsXlsx should build a workbook and trigger a spreadsheet download', async () => {
+		const downloadHarness = createDownloadHarness();
+
+		const filename = await exportTasksAsXlsx(
+			{
+				projectId: 'project-1',
+				projectName: 'Simple Project',
+				tasks,
+				users
+			},
+			new Date(2026, 1, 22, 1, 2, 3)
+		);
+
+		expect(filename).toBe('tasks-Simple_Project-20260222-010203.xlsx');
+		expect(xlsxMock.utils.book_new).toHaveBeenCalledOnce();
+		expect(xlsxMock.utils.aoa_to_sheet).toHaveBeenCalledOnce();
+		expect(xlsxMock.utils.book_append_sheet).toHaveBeenCalledWith(
+			{ sheets: [] },
+			expect.objectContaining({ rows: expect.any(Array) }),
+			'Tasks'
+		);
+		expect(xlsxMock.write).toHaveBeenCalledWith(
+			{ sheets: [] },
+			{ type: 'array', bookType: 'xlsx' }
+		);
+		const xlsxBlob = downloadHarness.createObjectURL.mock.calls.at(0)?.[0];
+		expect(xlsxBlob).toBeInstanceOf(Blob);
+		if (!(xlsxBlob instanceof Blob)) {
+			throw new Error('expected xlsx export to create a Blob');
+		}
+		expect(xlsxBlob.type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+		expect(downloadHarness.anchor.download).toBe(filename);
+		expect(downloadHarness.anchor.click).toHaveBeenCalledOnce();
+	});
+
+	it('exportTasksAsCsv should fail outside the browser environment', () => {
+		vi.stubGlobal('document', undefined);
+
+		expect(() =>
+			exportTasksAsCsv({
+				projectId: 'project-1',
+				projectName: 'Simple Project',
+				tasks,
+				users
+			})
+		).toThrow('ダウンロードはブラウザでのみ利用できます。');
 	});
 });

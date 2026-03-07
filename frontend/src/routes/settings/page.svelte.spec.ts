@@ -41,4 +41,49 @@ describe('/settings/+page.svelte', () => {
 			adminIntervalMs: 30000
 		});
 	});
+
+	it('should restore custom settings and reset them to defaults', async () => {
+		localStorage.setItem(
+			POLLING_SETTINGS_STORAGE_KEY,
+			JSON.stringify({
+				ganttIntervalMs: null,
+				adminIntervalMs: 30000
+			})
+		);
+
+		render(Page);
+
+		await expect
+			.element(page.getByRole('combobox', { name: 'ガント画面の同期間隔' }))
+			.toHaveValue('off');
+		await expect
+			.element(page.getByRole('combobox', { name: '管理画面の同期間隔' }))
+			.toHaveValue('30000');
+		await expect.element(page.getByRole('button', { name: '既定値に戻す' })).toBeEnabled();
+
+		await page.getByRole('button', { name: '既定値に戻す' }).click();
+
+		await expect.element(page.getByText('既定値に戻しました。')).toBeInTheDocument();
+		expect(localStorage.getItem(POLLING_SETTINGS_STORAGE_KEY)).toBeNull();
+		await expect.element(page.getByRole('button', { name: '既定値に戻す' })).toBeDisabled();
+	});
+
+	it('should show validation errors for unsupported interval values', async () => {
+		render(Page);
+
+		const ganttSelect = document.querySelector('select[name="ganttPollingInterval"]');
+		if (!(ganttSelect instanceof HTMLSelectElement)) {
+			throw new Error('expected gantt interval select');
+		}
+		const invalidOption = document.createElement('option');
+		invalidOption.value = '1234';
+		invalidOption.textContent = 'invalid';
+		ganttSelect.append(invalidOption);
+		ganttSelect.value = '1234';
+		ganttSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+		await page.getByRole('button', { name: '保存' }).click();
+
+		await expect.element(page.getByText('ガント画面の同期間隔が不正です。')).toBeInTheDocument();
+	});
 });

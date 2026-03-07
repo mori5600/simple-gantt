@@ -88,6 +88,25 @@ describe('gantt actions', () => {
 		});
 	});
 
+	it('loadInitialProjectAction should fall back to the first project when stored id is missing', async () => {
+		store.loadProjects.mockResolvedValueOnce([
+			projectFixture({ id: 'project-a' }),
+			projectFixture({ id: 'project-b' })
+		]);
+		store.load.mockResolvedValueOnce([]);
+
+		const actual = await loadInitialProjectAction({
+			store,
+			storedProjectId: 'project-missing'
+		});
+
+		expect(actual).toEqual({
+			kind: 'ok',
+			projectId: 'project-a'
+		});
+		expect(store.load).toHaveBeenCalledWith('project-a');
+	});
+
 	it('submitTaskAction should update by reusing updatedAt from source task', async () => {
 		store.update.mockResolvedValueOnce(taskFixture({ id: 'task-updated' }));
 
@@ -121,6 +140,54 @@ describe('gantt actions', () => {
 			assigneeIds: [],
 			predecessorTaskId: null,
 			updatedAt: '2026-02-20T00:00:00.000Z'
+		});
+	});
+
+	it('submitTaskAction should create new tasks and guard missing edit targets', async () => {
+		store.create.mockResolvedValueOnce(taskFixture({ id: 'task-created' }));
+
+		await expect(
+			submitTaskAction({
+				store,
+				mode: 'create',
+				projectId: 'project-1',
+				createInput: {
+					title: '新規',
+					note: '',
+					startDate: '2026-02-20',
+					endDate: '2026-02-21',
+					progress: 10,
+					assigneeIds: [],
+					predecessorTaskId: null
+				},
+				editingTaskId: null,
+				sourceTask: null
+			})
+		).resolves.toEqual({
+			kind: 'ok',
+			selectedTaskId: 'task-created'
+		});
+
+		await expect(
+			submitTaskAction({
+				store,
+				mode: 'edit',
+				projectId: 'project-1',
+				createInput: {
+					title: '更新後',
+					note: '',
+					startDate: '2026-02-20',
+					endDate: '2026-02-21',
+					progress: 10,
+					assigneeIds: [],
+					predecessorTaskId: null
+				},
+				editingTaskId: null,
+				sourceTask: null
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			message: '編集対象のタスクが見つかりません。'
 		});
 	});
 
@@ -331,6 +398,96 @@ describe('gantt actions', () => {
 		expect(result).toEqual({
 			kind: 'ok',
 			projectId: 'project-b'
+		});
+	});
+
+	it('changeProjectSelectionAction should noop when target is blank or unchanged', async () => {
+		await expect(
+			changeProjectSelectionAction({
+				store,
+				currentProjectId: 'project-a',
+				nextProjectId: ''
+			})
+		).resolves.toEqual({
+			kind: 'noop',
+			projectId: 'project-a'
+		});
+
+		await expect(
+			changeProjectSelectionAction({
+				store,
+				currentProjectId: 'project-a',
+				nextProjectId: 'project-a'
+			})
+		).resolves.toEqual({
+			kind: 'noop',
+			projectId: 'project-a'
+		});
+	});
+
+	it('simple actions should return null on success and import/create-user helpers should cover edge cases', async () => {
+		store.reorder.mockResolvedValueOnce([]);
+		store.remove.mockResolvedValueOnce(undefined);
+		store.update.mockResolvedValueOnce(taskFixture());
+		store.create.mockRejectedValueOnce(new Error('create failed'));
+
+		await expect(
+			reorderTasksAction({
+				store,
+				projectId: 'project-1',
+				ids: ['task-1']
+			})
+		).resolves.toBeNull();
+		await expect(
+			deleteTaskAction({
+				store,
+				projectId: 'project-1',
+				taskId: 'task-1'
+			})
+		).resolves.toBeNull();
+		await expect(
+			commitTaskDateRangeAction({
+				store,
+				projectId: 'project-1',
+				taskId: 'task-1',
+				startDate: '2026-02-20',
+				endDate: '2026-02-21',
+				updatedAt: '2026-02-20T00:00:00.000Z'
+			})
+		).resolves.toBeNull();
+		await expect(
+			importTasksAction({
+				store,
+				projectId: 'project-1',
+				drafts: [
+					{
+						sourceTaskId: null,
+						predecessorSourceTaskId: null,
+						createInput: {
+							title: '失敗タスク',
+							note: '',
+							startDate: '2026-02-20',
+							endDate: '2026-02-21',
+							progress: 0,
+							assigneeIds: [],
+							predecessorTaskId: null
+						}
+					}
+				]
+			})
+		).resolves.toEqual({
+			kind: 'error',
+			message: 'create failed'
+		});
+		await expect(
+			createMissingUsersAction({
+				missingNames: [' ', ''],
+				createUser: vi.fn()
+			})
+		).resolves.toEqual({
+			kind: 'ok',
+			createdUsers: [],
+			createdCount: 0
 		});
 	});
 

@@ -1,12 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { User } from '$lib/data/tasks/repo';
 import {
 	planTaskImportDrafts,
+	parseTaskImportFile,
 	TaskImportContractError,
 	parseTaskImportCsv,
 	parseTaskImportSheetData,
 	toTaskImportDrafts
 } from './import';
+
+const xlsxMocks = vi.hoisted(() => ({
+	read: vi.fn(),
+	sheetToJson: vi.fn()
+}));
+
+vi.mock('xlsx', () => ({
+	read: xlsxMocks.read,
+	utils: {
+		sheet_to_json: xlsxMocks.sheetToJson
+	}
+}));
 
 const users: User[] = [
 	{ id: 'user-1', name: '伊藤', updatedAt: '2026-02-20T00:00:00.000Z' },
@@ -74,6 +87,29 @@ describe('task import helpers', () => {
 				assignees: '伊藤',
 				predecessorTaskId: '',
 				note: '作業中'
+			}
+		]);
+	});
+
+	it('parseTaskImportSheetData should skip empty rows and fill missing optional columns', () => {
+		const rows = parseTaskImportSheetData([
+			['タイトル', '開始日', '終了日', '進捗(%)'],
+			[],
+			[' 実装 ', '2026-03-01', '2026-03-05', 70, null],
+			[undefined, undefined, undefined, undefined]
+		]);
+
+		expect(rows).toEqual([
+			{
+				rowNumber: 3,
+				taskId: '',
+				title: '実装',
+				startDate: '2026-03-01',
+				endDate: '2026-03-05',
+				progress: '70',
+				assignees: '',
+				predecessorTaskId: '',
+				note: ''
 			}
 		]);
 	});
@@ -188,5 +224,119 @@ describe('task import helpers', () => {
 				existingTaskIds: new Set<string>()
 			})
 		).toThrowError(TaskImportContractError);
+	});
+
+	it('helpers should reject empty files, unclosed quotes, duplicate ids, self predecessors, and duplicate user names', () => {
+		expect(() => parseTaskImportCsv('   ')).toThrowError(TaskImportContractError);
+		expect(() =>
+			parseTaskImportCsv(
+				[
+					'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+					'task-1,"要件確認,2026-02-20,2026-02-21,40,伊藤,,'
+				].join('\n')
+			)
+		).toThrowError(TaskImportContractError);
+
+		const duplicateRows = parseTaskImportCsv(
+			[
+				'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+				'task-1,要件確認,2026-02-20,2026-02-21,40,,,',
+				'task-1,実装,2026-02-22,2026-02-23,20,,,'
+			].join('\n')
+		);
+		expect(() =>
+			toTaskImportDrafts({
+				rows: duplicateRows,
+				users,
+				existingTaskIds: new Set<string>()
+			})
+		).toThrowError(TaskImportContractError);
+
+		const selfPredecessorRows = parseTaskImportCsv(
+			[
+				'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+				'task-1,要件確認,2026-02-20,2026-02-21,40,,task-1,'
+			].join('\n')
+		);
+		expect(() =>
+			toTaskImportDrafts({
+				rows: selfPredecessorRows,
+				users,
+				existingTaskIds: new Set<string>()
+			})
+		).toThrowError(TaskImportContractError);
+
+		expect(() =>
+			toTaskImportDrafts({
+				rows: parseTaskImportCsv(
+					[
+						'タスクID,タイトル,開始日,終了日,進捗(%),担当者,先行タスクID,メモ',
+						'task-1,要件確認,2026-02-20,2026-02-21,40,伊藤,,'
+					].join('\n')
+				),
+				users: [...users, { id: 'user-3', name: '伊藤', updatedAt: '2026-02-20T00:00:00.000Z' }],
+				existingTaskIds: new Set<string>()
+			})
+		).toThrowError(TaskImportContractError);
+	});
+
+	it('parseTaskImportFile should parse xlsx content and reject unsupported or broken workbooks', async () => {
+		xlsxMocks.read.mockReturnValueOnce({
+			SheetNames: ['Sheet1'],
+			Sheets: {
+				Sheet1: { A1: 'dummy' }
+			}
+		});
+		xlsxMocks.sheetToJson.mockReturnValueOnce([
+			['タイトル', '開始日', '終了日', '進捗(%)'],
+			['実装', '2026-03-01', '2026-03-05', 70]
+		]);
+
+		const parsed = await parseTaskImportFile(
+			new File(['dummy'], 'tasks.xlsx', {
+				type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+			})
+		);
+		expect(parsed).toEqual([
+			{
+				rowNumber: 2,
+				taskId: '',
+				title: '実装',
+				startDate: '2026-03-01',
+				endDate: '2026-03-05',
+				progress: '70',
+				assignees: '',
+				predecessorTaskId: '',
+				note: ''
+			}
+		]);
+
+		xlsxMocks.read.mockReturnValueOnce({
+			SheetNames: [],
+			Sheets: {}
+		});
+		await expect(
+			parseTaskImportFile(
+				new File(['dummy'], 'broken.xlsx', {
+					type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+				})
+			)
+		).rejects.toThrow(TaskImportContractError);
+
+		xlsxMocks.read.mockReturnValueOnce({
+			SheetNames: ['Sheet1'],
+			Sheets: {}
+		});
+		await expect(
+			parseTaskImportFile(
+				new File(['dummy'], 'missing-sheet.xlsx', {
+					type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+				})
+			)
+		).rejects.toThrow(TaskImportContractError);
+
+		await expect(parseTaskImportFile(new File(['{}'], 'tasks.json'))).rejects.toThrow(
+			TaskImportContractError
+		);
 	});
 });

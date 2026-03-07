@@ -9,6 +9,8 @@ node_modules
 /build
 /frontend/.svelte-kit
 /frontend/build
+/frontend/coverage
+/coverage
 /backend/dist
 /shared/dist
 

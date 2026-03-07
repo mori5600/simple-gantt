@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POLLING_SETTINGS_STORAGE_KEY } from '$lib/shared/pollingSettings';
 import type { Task } from '$lib/data/tasks/repo';
 import {
@@ -77,7 +77,12 @@ function createReadable<T>(initial: T) {
 }
 
 describe('gantt lifecycle helpers', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+
 	afterEach(() => {
+		vi.useRealTimers();
 		vi.unstubAllGlobals();
 	});
 
@@ -350,5 +355,139 @@ describe('gantt lifecycle helpers', () => {
 		expect(users.unsubscribe).toHaveBeenCalledTimes(1);
 		expect(members.unsubscribe).toHaveBeenCalledTimes(1);
 		expect(refreshProject).not.toHaveBeenCalled();
+	});
+
+	it('mountGanttPageLifecycle should report initialize empty and error results', async () => {
+		vi.stubGlobal('localStorage', undefined);
+
+		const tasks = createReadable<Task[]>([]);
+		const projects = createReadable([]);
+		const users = createReadable([]);
+		const members = createReadable([]);
+		const onInitializeError = vi.fn();
+
+		const unmountEmpty = mountGanttPageLifecycle({
+			store: {
+				subscribe: tasks.readable.subscribe,
+				projects: projects.readable,
+				users: users.readable,
+				projectMembers: members.readable,
+				loadProjects: vi.fn().mockResolvedValue([]),
+				load: vi.fn().mockResolvedValue([])
+			},
+			refreshProject: vi.fn(),
+			filtersStorageKey: 'filters',
+			projectStorageKey: 'project',
+			defaultSyncPollIntervalMs: 1_000,
+			getSyncState: () => ({
+				selectedProjectId: '',
+				isSubmitting: false,
+				isInitialized: true
+			}),
+			onTaskFiltersRestored: vi.fn(),
+			onStorageReady: vi.fn(),
+			onTasks: vi.fn(),
+			onProjects: vi.fn(),
+			onUsers: vi.fn(),
+			onProjectMembers: vi.fn(),
+			onSyncError: vi.fn(),
+			onInitializeSuccess: vi.fn(),
+			onInitializeError
+		});
+
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(onInitializeError).toHaveBeenCalledWith('利用可能なプロジェクトがありません。');
+		unmountEmpty();
+
+		const onInitializeErrorForFailure = vi.fn();
+		const unmountError = mountGanttPageLifecycle({
+			store: {
+				subscribe: tasks.readable.subscribe,
+				projects: projects.readable,
+				users: users.readable,
+				projectMembers: members.readable,
+				loadProjects: vi.fn().mockRejectedValue(new Error('初期化失敗')),
+				load: vi.fn().mockResolvedValue([])
+			},
+			refreshProject: vi.fn(),
+			filtersStorageKey: 'filters',
+			projectStorageKey: 'project',
+			defaultSyncPollIntervalMs: 1_000,
+			getSyncState: () => ({
+				selectedProjectId: '',
+				isSubmitting: false,
+				isInitialized: true
+			}),
+			onTaskFiltersRestored: vi.fn(),
+			onStorageReady: vi.fn(),
+			onTasks: vi.fn(),
+			onProjects: vi.fn(),
+			onUsers: vi.fn(),
+			onProjectMembers: vi.fn(),
+			onSyncError: vi.fn(),
+			onInitializeSuccess: vi.fn(),
+			onInitializeError: onInitializeErrorForFailure
+		});
+
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(onInitializeErrorForFailure).toHaveBeenCalledWith('初期化失敗');
+		unmountError();
+	});
+
+	it('mountGanttPageLifecycle should forward polling errors from sync refresh', async () => {
+		const storage = new MemoryStorage();
+		vi.stubGlobal('localStorage', storage);
+		vi.stubGlobal('document', {
+			visibilityState: 'visible',
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn()
+		});
+
+		const tasks = createReadable<Task[]>([taskFixture()]);
+		const projects = createReadable([{ id: 'project-1', name: 'A', sortOrder: 0, updatedAt: 'x' }]);
+		const users = createReadable([{ id: 'user-1', name: '伊藤', updatedAt: 'x' }]);
+		const members = createReadable([{ id: 'user-2', name: '佐藤', updatedAt: 'x' }]);
+		const refreshProject = vi.fn().mockRejectedValue(new Error('同期失敗'));
+		const onSyncError = vi.fn();
+
+		const unmount = mountGanttPageLifecycle({
+			store: {
+				subscribe: tasks.readable.subscribe,
+				projects: projects.readable,
+				users: users.readable,
+				projectMembers: members.readable,
+				loadProjects: vi
+					.fn()
+					.mockResolvedValue([{ id: 'project-1', name: 'A', sortOrder: 0, updatedAt: 'x' }]),
+				load: vi.fn().mockResolvedValue([])
+			},
+			refreshProject,
+			filtersStorageKey: 'filters',
+			projectStorageKey: 'project',
+			defaultSyncPollIntervalMs: 1_000,
+			getSyncState: () => ({
+				selectedProjectId: 'project-1',
+				isSubmitting: false,
+				isInitialized: true
+			}),
+			onTaskFiltersRestored: vi.fn(),
+			onStorageReady: vi.fn(),
+			onTasks: vi.fn(),
+			onProjects: vi.fn(),
+			onUsers: vi.fn(),
+			onProjectMembers: vi.fn(),
+			onSyncError,
+			onInitializeSuccess: vi.fn(),
+			onInitializeError: vi.fn()
+		});
+
+		await vi.advanceTimersByTimeAsync(1_000);
+
+		expect(refreshProject).toHaveBeenCalledWith('project-1');
+		expect(onSyncError).toHaveBeenCalledWith('同期失敗');
+
+		unmount();
 	});
 });
