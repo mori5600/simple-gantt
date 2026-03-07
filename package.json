@@ -1,7 +1,7 @@
 {
 	"name": "@simple-gantt/workspace",
 	"private": true,
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"dependencies": {
 		"@prisma/client": "^6.16.3"
 	},
