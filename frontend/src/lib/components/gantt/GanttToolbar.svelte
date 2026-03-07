@@ -120,9 +120,9 @@
 <header class="sticky top-0 z-30 border-b border-slate-200/90 bg-stone-50/95 backdrop-blur">
 	<div class="px-3 py-4 sm:px-5">
 		<h1 class="sr-only">{selectedProjectName} のガント</h1>
-		<div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+		<div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
 			<div class="min-w-0 space-y-4">
-				<div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+				<div class="flex min-w-0 flex-wrap items-center gap-3">
 					<label
 						class="flex max-w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white/85 px-3 py-2.5"
 					>
@@ -141,25 +141,6 @@
 							{/each}
 						</select>
 					</label>
-
-					<div class="flex items-center gap-1.5">
-						<a
-							href={resolve('/admin/projects')}
-							class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white/80 px-3 text-slate-600 transition hover:bg-white hover:text-slate-800"
-							aria-label="管理"
-							title="管理"
-						>
-							<i class="bi bi-people text-base" aria-hidden="true"></i>
-						</a>
-						<a
-							href={resolve('/settings')}
-							class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white/80 px-3 text-slate-600 transition hover:bg-white hover:text-slate-800"
-							aria-label="設定"
-							title="設定"
-						>
-							<i class="bi bi-gear text-base" aria-hidden="true"></i>
-						</a>
-					</div>
 				</div>
 
 				<div class="flex flex-wrap items-center gap-2.5">
@@ -280,43 +261,67 @@
 				</div>
 			</div>
 
-			<div class="flex items-center gap-2 xl:justify-self-end">
-				<span class="text-[10px] font-medium tracking-[0.24em] text-slate-400 uppercase">Zoom</span>
-				<div
-					class="inline-flex rounded-full border border-slate-200 bg-white/80 p-1"
-					role="group"
-					aria-label="zoom"
-				>
-					<button
-						type="button"
-						class={`rounded-full px-4 py-1 text-sm font-medium transition ${
-							zoom === 'day' ? 'bg-slate-800 text-stone-50' : 'text-slate-600 hover:bg-stone-100'
-						}`}
-						aria-pressed={zoom === 'day'}
-						onclick={() => onZoomChange('day')}
+			<div class="flex flex-col items-start gap-3 xl:items-end xl:justify-self-end">
+				<div class="flex flex-wrap items-center gap-2">
+					<a
+						href={resolve('/admin/projects')}
+						class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white/80 px-3 text-slate-600 transition hover:bg-white hover:text-slate-800"
+						aria-label="管理"
+						title="管理"
 					>
-						Day
-					</button>
-					<button
-						type="button"
-						class={`rounded-full px-4 py-1 text-sm font-medium transition ${
-							zoom === 'week' ? 'bg-slate-800 text-stone-50' : 'text-slate-600 hover:bg-stone-100'
-						}`}
-						aria-pressed={zoom === 'week'}
-						onclick={() => onZoomChange('week')}
+						<i class="bi bi-people text-base" aria-hidden="true"></i>
+					</a>
+					<a
+						href={resolve('/settings')}
+						class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white/80 px-3 text-slate-600 transition hover:bg-white hover:text-slate-800"
+						aria-label="設定"
+						title="設定"
 					>
-						Week
-					</button>
-					<button
-						type="button"
-						class={`rounded-full px-4 py-1 text-sm font-medium transition ${
-							zoom === 'month' ? 'bg-slate-800 text-stone-50' : 'text-slate-600 hover:bg-stone-100'
-						}`}
-						aria-pressed={zoom === 'month'}
-						onclick={() => onZoomChange('month')}
+						<i class="bi bi-gear text-base" aria-hidden="true"></i>
+					</a>
+				</div>
+				<div class="flex flex-wrap items-center gap-2">
+					<span class="text-[10px] font-medium tracking-[0.24em] text-slate-400 uppercase"
+						>Zoom</span
 					>
-						Month
-					</button>
+					<div
+						class="inline-flex rounded-full border border-slate-200 bg-white/80 p-1"
+						role="group"
+						aria-label="zoom"
+					>
+						<button
+							type="button"
+							class={`rounded-full px-4 py-1 text-sm font-medium transition ${
+								zoom === 'day' ? 'bg-slate-800 text-stone-50' : 'text-slate-600 hover:bg-stone-100'
+							}`}
+							aria-pressed={zoom === 'day'}
+							onclick={() => onZoomChange('day')}
+						>
+							Day
+						</button>
+						<button
+							type="button"
+							class={`rounded-full px-4 py-1 text-sm font-medium transition ${
+								zoom === 'week' ? 'bg-slate-800 text-stone-50' : 'text-slate-600 hover:bg-stone-100'
+							}`}
+							aria-pressed={zoom === 'week'}
+							onclick={() => onZoomChange('week')}
+						>
+							Week
+						</button>
+						<button
+							type="button"
+							class={`rounded-full px-4 py-1 text-sm font-medium transition ${
+								zoom === 'month'
+									? 'bg-slate-800 text-stone-50'
+									: 'text-slate-600 hover:bg-stone-100'
+							}`}
+							aria-pressed={zoom === 'month'}
+							onclick={() => onZoomChange('month')}
+						>
+							Month
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>

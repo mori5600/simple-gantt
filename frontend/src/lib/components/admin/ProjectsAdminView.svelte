@@ -294,38 +294,40 @@
 	}
 </script>
 
-<header class="flex flex-wrap items-center justify-between gap-3">
-	<div>
-		<h1 class="text-xl font-semibold text-slate-900">プロジェクト管理</h1>
-		<p class="text-sm text-slate-600">Projects</p>
+<header class="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 sm:px-5">
+	<div class="flex flex-wrap items-end justify-between gap-3">
+		<div class="space-y-1">
+			<p class="text-[10px] font-medium tracking-[0.28em] text-slate-400 uppercase">Projects</p>
+			<h1 class="text-base font-medium text-slate-900">プロジェクト管理</h1>
+		</div>
+		{#if showBackLink}
+			<a
+				href={resolve('/')}
+				class="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white/80 px-4 text-sm font-medium text-slate-700 transition hover:bg-white"
+			>
+				ガントへ戻る
+			</a>
+		{/if}
 	</div>
-	{#if showBackLink}
-		<a
-			href={resolve('/')}
-			class="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-		>
-			ガントへ戻る
-		</a>
-	{/if}
 </header>
 
-<section class="rounded-2xl border border-slate-300 bg-white p-4 shadow-sm">
-	<form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]" onsubmit={submitCreate}>
+<section class="rounded-2xl border border-slate-200 bg-white/85 p-5">
+	<form class="grid gap-3" onsubmit={submitCreate}>
 		<label class="grid gap-1 text-sm font-semibold text-slate-700">
 			<span>新規プロジェクト名</span>
 			<input
 				type="text"
 				name="createProjectName"
-				class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
+				class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-800 ring-slate-400/35 transition outline-none focus:ring-2"
 				placeholder="例: Webサイト刷新"
 				value={createName}
 				oninput={(event) => (createName = (event.currentTarget as HTMLInputElement).value)}
 			/>
 		</label>
-		<div class="flex items-end">
+		<div class="flex">
 			<button
 				type="submit"
-				class="h-10 rounded-xl bg-sky-700 px-4 text-sm font-semibold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
+				class="h-10 rounded-xl bg-slate-800 px-4 text-sm font-semibold text-stone-50 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-45"
 				disabled={!canCreate}
 			>
 				追加
@@ -340,16 +342,16 @@
 	{/if}
 </section>
 
-<section class="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
+<section class="overflow-hidden rounded-2xl border border-slate-200 bg-white/85">
 	<div class="border-b border-slate-200 px-4 py-3">
 		<div class="flex flex-wrap items-center justify-between gap-3">
-			<p class="text-sm font-semibold text-slate-700">Projects</p>
+			<p class="text-sm font-medium text-slate-700">Projects</p>
 			<label class="flex min-w-56 items-center gap-2 text-sm text-slate-600">
-				<span class="font-semibold whitespace-nowrap text-slate-700">検索</span>
+				<span class="font-medium whitespace-nowrap text-slate-700">検索</span>
 				<input
 					type="search"
 					name="projectSearch"
-					class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
+					class="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800 ring-slate-400/35 transition outline-none focus:ring-2"
 					placeholder="プロジェクト名 / ID"
 					value={searchQuery}
 					oninput={(event) => (searchQuery = (event.currentTarget as HTMLInputElement).value)}
@@ -367,7 +369,7 @@
 	{:else}
 		<div class="overflow-x-auto">
 			<table class="min-w-full text-sm">
-				<thead class="bg-slate-50 text-left text-xs tracking-wide text-slate-500 uppercase">
+				<thead class="bg-stone-50 text-left text-[11px] tracking-[0.16em] text-slate-400 uppercase">
 					<tr>
 						<th class="px-4 py-2">Name</th>
 						<th class="px-4 py-2 text-right">Tasks</th>
@@ -382,7 +384,7 @@
 									<input
 										type="text"
 										name="editProjectName"
-										class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm ring-sky-500/40 transition outline-none focus:ring-2"
+										class="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm ring-slate-400/35 transition outline-none focus:ring-2"
 										value={editingName}
 										oninput={(event) =>
 											(editingName = (event.currentTarget as HTMLInputElement).value)}
@@ -398,7 +400,7 @@
 								<div class="flex flex-wrap items-center justify-end gap-2">
 									<button
 										type="button"
-										class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+										class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-45"
 										onclick={() => void moveProject(project.id, 'up')}
 										disabled={findProjectIndex(project.id) === 0 || isSubmitting}
 										aria-label="move up"
@@ -407,7 +409,7 @@
 									</button>
 									<button
 										type="button"
-										class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+										class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-45"
 										onclick={() => void moveProject(project.id, 'down')}
 										disabled={findProjectIndex(project.id) === projects.length - 1 || isSubmitting}
 										aria-label="move down"
@@ -417,7 +419,7 @@
 									{#if editingProjectId === project.id}
 										<button
 											type="button"
-											class="rounded-lg bg-sky-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
+											class="rounded-lg bg-slate-800 px-3 py-1 text-xs font-semibold text-stone-50 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-45"
 											onclick={() => void submitEdit(project)}
 											disabled={editingName.trim().length === 0 || isSubmitting}
 										>
@@ -425,7 +427,7 @@
 										</button>
 										<button
 											type="button"
-											class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+											class="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-stone-50"
 											onclick={cancelEdit}
 										>
 											取消
@@ -433,7 +435,7 @@
 									{:else}
 										<button
 											type="button"
-											class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+											class="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-45"
 											onclick={() => void beginManageMembers(project)}
 											disabled={isSubmitting}
 										>
@@ -441,7 +443,7 @@
 										</button>
 										<button
 											type="button"
-											class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+											class="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-45"
 											onclick={() => beginEdit(project)}
 											disabled={isSubmitting}
 										>
@@ -449,7 +451,7 @@
 										</button>
 										<button
 											type="button"
-											class="rounded-lg border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
+											class="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition hover:border-rose-200 hover:bg-rose-50/60 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-45"
 											onclick={() => beginDeleteProject(project)}
 											disabled={isSubmitting}
 											title="プロジェクトを削除"
@@ -530,7 +532,7 @@
 				<div class="mt-1 flex justify-end gap-2">
 					<button
 						type="button"
-						class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+						class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-45"
 						onclick={closeDeleteDialog}
 						disabled={isSubmitting}
 					>
@@ -538,7 +540,7 @@
 					</button>
 					<button
 						type="button"
-						class="rounded-lg border border-rose-300 bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-45"
+						class="rounded-lg border border-slate-200 bg-slate-800 px-4 py-2 text-sm font-semibold text-stone-50 transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-45"
 						onclick={() => void confirmDeleteProject()}
 						disabled={isSubmitting || deleteProjectNameInput !== pendingDeleteProject.name}
 					>
@@ -628,7 +630,7 @@
 			<div class="mt-4 flex justify-end gap-2">
 				<button
 					type="button"
-					class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+					class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-45"
 					onclick={closeMembersDialog}
 					disabled={isSubmitting}
 				>
@@ -636,7 +638,7 @@
 				</button>
 				<button
 					type="button"
-					class="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-45"
+					class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-stone-50 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-45"
 					onclick={() => void saveMembers()}
 					disabled={isSubmitting || isMembersLoading}
 				>

@@ -115,27 +115,29 @@
 </script>
 
 <div class="min-h-screen bg-slate-100 text-slate-800">
-	<div class="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 sm:px-6">
-		<header class="flex flex-wrap items-center justify-between gap-3">
-			<div>
-				<h1 class="text-xl font-semibold text-slate-900">設定</h1>
-				<p class="text-sm text-slate-600">Polling</p>
+	<div class="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:px-6">
+		<header class="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 sm:px-5">
+			<div class="flex flex-wrap items-end justify-between gap-3">
+				<div class="space-y-1">
+					<p class="text-[10px] font-medium tracking-[0.28em] text-slate-400 uppercase">Settings</p>
+					<h1 class="text-base font-medium text-slate-900">設定</h1>
+				</div>
+				<a
+					href={resolve('/')}
+					class="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white/80 px-4 text-sm font-medium text-slate-700 transition hover:bg-white"
+				>
+					ガントへ戻る
+				</a>
 			</div>
-			<a
-				href={resolve('/')}
-				class="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-			>
-				ガントへ戻る
-			</a>
 		</header>
 
-		<section class="rounded-2xl border border-slate-300 bg-white p-4 shadow-sm">
-			<div class="grid gap-3">
+		<section class="rounded-2xl border border-slate-200 bg-white/85 p-5">
+			<div class="grid gap-4">
 				<label class="grid gap-1 text-sm font-semibold text-slate-700">
 					<span>ガント画面の同期間隔</span>
 					<select
 						name="ganttPollingInterval"
-						class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
+						class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-800 ring-slate-400/35 transition outline-none focus:ring-2"
 						bind:value={ganttIntervalValue}
 					>
 						<option value="off">OFF</option>
@@ -149,7 +151,7 @@
 					<span>管理画面の同期間隔</span>
 					<select
 						name="adminPollingInterval"
-						class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 ring-sky-500/40 transition outline-none focus:ring-2"
+						class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-800 ring-slate-400/35 transition outline-none focus:ring-2"
 						bind:value={adminIntervalValue}
 					>
 						<option value="off">OFF</option>
@@ -166,14 +168,14 @@
 				<div class="flex flex-wrap items-center gap-2">
 					<button
 						type="button"
-						class="h-10 rounded-xl bg-sky-700 px-4 text-sm font-semibold text-white transition hover:bg-sky-800"
+						class="h-10 rounded-xl bg-slate-800 px-4 text-sm font-semibold text-stone-50 transition hover:bg-slate-900"
 						onclick={save}
 					>
 						保存
 					</button>
 					<button
 						type="button"
-						class="h-10 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+						class="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-stone-50"
 						onclick={reset}
 						disabled={!hasCustomSettings}
 					>

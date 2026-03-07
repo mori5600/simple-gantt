@@ -10,6 +10,8 @@ bun.lockb
 /frontend/.svelte-kit/
 /frontend/build/
 /frontend/coverage/
+/backend/dist/
+/shared/dist/
 /coverage/
 .svelte-kit/
 .env
